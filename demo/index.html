@@ -1,0 +1,39 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml" xml:lang="en" lang="en">
+<head>
+	<meta http-equiv="Content-Type" content="text/html; charset=iso-8859-1" />
+
+	<link rel="stylesheet" type="text/css" href="style.css" />
+	<title>Canvas2DtoWebGL Demo</title>
+
+	<script type="text/javascript" src="../src/gl-matrix-min.js"></script>
+	<script type="text/javascript" src="../src/litegl.min.js"></script>
+	<script type="text/javascript" src="../src/Canvas2DtoWebGL.js"></script>
+	<script type="text/javascript" src="code.js"></script>
+</head>
+
+<body>
+
+<div id="header">
+	<strong>Canvas2DtoWebGL</strong>
+	<select>
+		<option data-demo="render_image">drawImage</option>
+		<option data-demo="render_images">drawImage transformed</option>
+		<option data-demo="render_smoothing">imageSmoothingEnabled = false</option>
+		<option data-demo="render_lines1">beginPath -> stroke</option>
+		<option data-demo="render_lines2">moveTo lineTo</option>
+		<option data-demo="render_bezierCurveTo">bezierCurveTo</option>
+		<option data-demo="render_arc">arc</option>
+		<option data-demo="render_arc_width">arc + lineWidth</option>
+		<option data-demo="render_pattern">createPattern</option>
+		<option data-demo="render_benchmark_fillRect">Benchmark: fillRect</option>
+		<option data-demo="render_benchmark_drawImage">Benchmark: drawImage</option>
+	</select>
+	<button id="go_canvas" data-mode="canvas">GO Canvas2D</button>
+	<button id="go_webgl" data-mode="webgl">GO WebGL</button>
+</div>
+
+<script type="text/javascript">init();</script>
+
+</body>
+</html>

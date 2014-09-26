@@ -1,0 +1,34 @@
+html,body {
+	width: 100%;
+	height: 100%;
+}
+
+html,body, div {
+margin: 0;
+padding: 0;
+}
+
+body {
+	font: 16px Tahoma;
+}
+
+#header {
+	position: absolute;
+	top: 0;
+	left: 0;
+	width: 100%;
+	padding: 4px;
+	color: white;
+	background-color: #333;
+}
+
+button {
+	border-radius: 2px;
+	border: 0;
+	background-color: #9AF;
+	color: black;
+}
+
+button.selected {
+	color: white;
+}
