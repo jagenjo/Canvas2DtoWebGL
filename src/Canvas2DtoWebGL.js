@@ -199,7 +199,7 @@ function enableWebGLCanvas( canvas )
 					uid = img._uid = last_uid++;
 				tex = gl.textures["canvas_" + uid];
 				if(!tex)
-					 tex = gl.textures["canvas_" + uid] = GL.Texture.fromImage(img, { filter: gl.NEAREST });
+					 tex = gl.textures["canvas_" + uid] = GL.Texture.fromImage(img, { minFilter: gl.LINEAR, magFilter: gl.LINEAR });
 				else
 					gl.textures["canvas_" + uid].uploadImage( img );
 				return tex;
@@ -211,7 +211,7 @@ function enableWebGLCanvas( canvas )
 
 	ctx.drawImage = function( img, x, y, w, h )
 	{
-		if(!img) return;
+		if(!img || img.width == 0 || img.height == 0) return;
 
 		var tex = getTexture(img);
 		if(!tex) return;
@@ -329,7 +329,8 @@ function enableWebGLCanvas( canvas )
 		this.updateColor( this.fillStyle, this._fillcolor );
 
 		//update buffer
-		global_buffer.upload( gl.STREAM_DRAW );
+		//global_buffer.upload( gl.STREAM_DRAW );
+		global_buffer.uploadRange(0, global_index * 4); //4 bytes per float
 
 		var shader = flat_primitive_shader;
 
@@ -362,7 +363,8 @@ function enableWebGLCanvas( canvas )
 		this.updateColor( this.strokeStyle, this._strokecolor );
 
 		//update buffer
-		global_buffer.upload( gl.STREAM_DRAW );
+		global_buffer.uploadRange(0, global_index * 4); //4 bytes per float
+		//global_buffer.upload( gl.STREAM_DRAW );
 
 		gl.setLineWidth( this.lineWidth );
 		uniforms.u_color = this._strokecolor;
@@ -452,6 +454,7 @@ function enableWebGLCanvas( canvas )
 		this.updateColor( this.strokeStyle, this._strokecolor );
 
 		lines_buffer.upload(gl.STREAM_DRAW);
+		lines_buffer.uploadRange(0, pos * 4); //4 bytes per float
 
 		//gl.setLineWidth( this.lineWidth );
 		uniforms.u_color = this._strokecolor;
@@ -689,7 +692,14 @@ function enableWebGLCanvas( canvas )
 			}\n\
 			";
 
+	//text rendering
+	var max_characters = 1000;
 	var	text_shader = new GL.Shader( TEXT_VERTEX_SHADER, TEXT_FRAGMENT_SHADER );
+	var text_vertices = new Float32Array( max_characters * 3 );
+	var text_coords = new Float32Array( max_characters * 2 );
+	var text_mesh = new GL.Mesh();
+	var text_vertices_buffer = text_mesh.addVertexBuffer("vertices", null, null, text_vertices, gl.STREAM_DRAW );
+	var text_coords_buffer = text_mesh.addVertexBuffer("coords", null, null, text_coords, gl.STREAM_DRAW );
 
 	ctx.fillText = ctx.strokeText = function(text,startx,starty)
 	{
@@ -697,8 +707,8 @@ function enableWebGLCanvas( canvas )
 			this.createFontAtlas();
 		var atlas = this.font_atlas;
 
-		var points = [];
-		var coords = [];
+		var points = text_vertices;
+		var coords = text_coords;
 		var point_size = 14;
 		var tokens = this.font.split(" ");
 		for(var i in tokens)
@@ -720,6 +730,8 @@ function enableWebGLCanvas( canvas )
 		var l = text.length;
 		var spacing = point_size * atlas.atlas.spacing / atlas.atlas.char_size - 1 ;
 
+		var vertices_index = 0, coords_index = 0;
+
 		for(var i = 0; i < l; i++)
 		{
 			var c = atlas.atlas[ text.charCodeAt(i) ];
@@ -735,8 +747,14 @@ function enableWebGLCanvas( canvas )
 				continue;
 			}
 
-			points.push(startx + x + point_size * 0.5,starty + y - point_size*0.25,1);
-			coords.push(c[1], c[2]);
+			points[vertices_index+0] = startx + x + point_size * 0.5;
+			points[vertices_index+1] = starty + y - point_size*0.25;
+			points[vertices_index+2] = 1;
+			vertices_index += 3;
+
+			coords[coords_index+0] = c[1];
+			coords[coords_index+1] = c[2];
+			coords_index += 2;
 
 			x += spacing;
 		}
@@ -754,15 +772,18 @@ function enableWebGLCanvas( canvas )
 		//render
 		this.updateColor( this.fillStyle, this._fillcolor );
 		atlas.bind(0);
-		var mesh = GL.Mesh.load({ vertices: points, coords: coords });
-		text_shader.uniforms({
-			u_color: this._fillcolor,
-			u_pointSize: point_size * this._matrix[0],
-			u_iCharSize: atlas.atlas.char_size / atlas.width,
-			u_transform: this._matrix, 
-			u_viewport: viewport,
-			u_texture: 0
-		}).draw(mesh, gl.POINTS);
+
+		//var mesh = GL.Mesh.load({ vertices: points, coords: coords });
+		text_vertices_buffer.uploadRange(0,vertices_index*4);
+		text_coords_buffer.uploadRange(0,coords_index*4);
+
+		uniforms.u_color = this._fillcolor;
+		uniforms.u_pointSize = point_size * this._matrix[0];
+		uniforms.u_iCharSize = atlas.atlas.char_size / atlas.width;
+		uniforms.u_transform = this._matrix;
+		uniforms.u_viewport = viewport;
+
+		text_shader.uniforms(uniforms).drawRange(text_mesh, gl.POINTS, 0, vertices_index / 3 );
 	}
 
 	ctx.meassureText = function(text)

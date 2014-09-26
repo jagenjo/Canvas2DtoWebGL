@@ -20,7 +20,8 @@ function init()
 		current_demo = window[ option.dataset["demo"] ];
 	});
 
-	requestAnimationFrame(loop);
+	changeMode.call(go_webgl);
+	loop();
 
 	function loop()
 	{
@@ -178,7 +179,7 @@ function render_arc(canvas, ctx)
 
 	ctx.strokeStyle = "black";
 	ctx.beginPath();
-	ctx.arc( canvas.width * 0.5, canvas.height * 0.5, 100, 0, Math.PI );
+	ctx.arc( canvas.width * 0.5, canvas.height * 0.5, 100, 0, Math.PI + (Math.sin(time) * Math.PI) );
 	ctx.stroke();
 }
 
@@ -190,7 +191,7 @@ function render_arc_width(canvas, ctx)
 	ctx.strokeStyle = "black";
 	ctx.lineWidth = 4;
 	ctx.beginPath();
-	ctx.arc( canvas.width * 0.5, canvas.height * 0.5, 100, 0, Math.PI );
+	ctx.arc( canvas.width * 0.5, canvas.height * 0.5, 100, 0, Math.PI + (Math.sin(time) * Math.PI) );
 	ctx.stroke();
 }
 
