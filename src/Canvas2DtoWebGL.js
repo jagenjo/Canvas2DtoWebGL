@@ -958,7 +958,7 @@ function enableWebGLCanvas( canvas )
 
 
 	//empty functions: this is used to create null functions in those Canvas2D funcs not implemented here
-	var names = ["clip"]; //all functions have been implemented
+	var names = ["clip","arcTo","isPointInPath","createImageData"]; //all functions have been implemented
 	var null_func = function() {};
 	for(var i in names)
 		ctx[ names[i] ] = null_func;
