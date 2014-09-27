@@ -264,7 +264,8 @@ function render_fillText(canvas, ctx)
 	var h = canvas.height;
 
 	ctx.fillStyle = "black";
-	ctx.font = "50px Arial";
+	var fontsize = 40 + (Math.sin(time) * 20);
+	ctx.font = fontsize + "px Arial";
 	ctx.textAlign = "center";
 	var text = time.toFixed(2) + " seconds elapsed"
 	ctx.fillText(text, w * 0.5, h * 0.5 );

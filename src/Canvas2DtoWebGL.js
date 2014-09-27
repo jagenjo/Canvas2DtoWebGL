@@ -688,7 +688,7 @@ function enableWebGLCanvas( canvas )
 				pos.x = (2.0 * pos.x / u_viewport.x) - 1.0;\n\
 				pos.y = -((2.0 * pos.y / u_viewport.y) - 1.0);\n\
 				gl_Position = vec4(pos, 1.0); \n\
-				gl_PointSize = u_pointSize;\n\
+				gl_PointSize = ceil(u_pointSize);\n\
 				v_coord = a_coord;\n\
 			}\n\
 			";
@@ -698,9 +698,14 @@ function enableWebGLCanvas( canvas )
 			uniform sampler2D u_texture;\n\
 			uniform float u_iCharSize;\n\
 			uniform vec4 u_color;\n\
+			uniform float u_pointSize;\n\
+			uniform vec2 u_viewport;\n\
 			varying vec2 v_coord;\n\
 			void main() {\n\
-				vec2 uv = v_coord - vec2(1.0 - gl_PointCoord.s, 1.0 - gl_PointCoord.t) * u_iCharSize + u_iCharSize*0.5;\n\
+				vec2 extra = vec2(1.0) - (vec2(floor(u_pointSize)) / u_viewport) * fract(u_pointSize) ;\n\
+				vec2 uv = vec2(1.0 - gl_PointCoord.s, 1.0 - gl_PointCoord.t);\n\
+				uv *= extra;\n\
+				uv = v_coord - uv * u_iCharSize + vec2(u_iCharSize*0.5);\n\
 				uv.y = 1.0 - uv.y;\n\
 				gl_FragColor = u_color * texture2D(u_texture, uv, -1.0  );\n\
 			}\n\
@@ -806,13 +811,14 @@ function enableWebGLCanvas( canvas )
 		return { width: text.length * spacing };
 	}
 
-	ctx.createFontAtlas = function(fontname)
+	ctx.createFontAtlas = function(fontname, force)
 	{
+		fontname = fontname || "monospace";
+
 		var texture = this.textures[":font_" + fontname];
-		if(texture)
+		if(texture && !force)
 			return texture;
 
-		fontname = fontname || "monospace";
 		var fontmode = "normal";//"bold";
 		var canvas = createCanvas(512,512);
 		//document.body.appendChild(canvas);
