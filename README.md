@@ -9,7 +9,7 @@ Fully supported functions:
 
  * translate, rotate, scale, transform, setTransform, save, restore
  * clearRect
- * drawImage (not the 6 params version), you can use images or canvas (video not tested)
+ * drawImage (not the 9 params version), you can use images or canvas (video not tested)
  * beginPath, lineTo, moveTo, closePath, stroke, rect, strokeRect, fillRect, arc
  * fill (limited to convex shapes)
  * createPattern with images
@@ -17,13 +17,15 @@ Fully supported functions:
  * fillText (it creates a texture atlas with all the characters)
  * lineWidth (only one mode supported)
  * strokeStyle, fillStyle, globalAlpha
+ * imageSmoothingEnabled
+ * getImageData and putImageData (not fully tested)
 
 Not supported (yet):
  * clip
  * globalCompositeOperation
  * concave polygon shapes
  * createLinearGradient
- * drawImage using 6 parameters(x,y, startx,starty,endx,endy)
+ * drawImage using 9 parameters(img,sx,sy,swidth,sheight,x,y,width,height)
  * shadows
 
 Demos & Benchmark
