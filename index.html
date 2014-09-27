@@ -1,0 +1,84 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml" xml:lang="en" lang="en">
+<head>
+<meta http-equiv="Content-Type" content="text/html; charset=iso-8859-1" />
+
+<title>Canvas2DtoWebGL.js</title>
+	<link type="text/css" rel="stylesheet" media="all" href="github.css">
+	<link rel="stylesheet" type="text/css" href="style.css" />
+	<style type='text/css'>
+	</style>
+</head>
+<body>
+
+<div id="wrap">
+	<div id="main">
+		<div id="content" class="markdown-body">
+			<article class="markdown-body entry-content" itemprop="mainContentOfPage"><h1>
+			<a name="user-content-canvas2dtowebgljs" class="anchor" href="#canvas2dtowebgljs" aria-hidden="true"><span class="octicon octicon-link"></span></a>Canvas2DtoWebGL.js</h1>
+
+			<p>Canvas2DtoWebGL.js ports almost all the methods from the regular Canvas2D context of HTML5 to WebGL calls, this allows to mix 3D in your 2D Canvas and in some cases it could even improve the performance of your regular Canvas2D.
+			It used <a href="https://github.com/jagenjo/litegl.js">litegl.js</a> as the base WebGL library.</p>
+
+			<ul class="task-list">
+			<li>Supports rendering images and other canvas</li>
+			<li>Stroke lines with any width</li>
+			<li>Patterns created using images with createPattern</li>
+			<li>BezierCurves</li>
+			<li>It doesnt generate garbage (reuses the same containers)</li>
+			<li>Text rendering</li>
+			</ul>
+
+			<ul class="task-list">
+			</ul><p>Not supported (yet):</p>
+
+			<ul class="task-list">
+			<li>Clip</li>
+			<li>Quadratic Curves</li>
+			<li>Concave polygon shapes</li>
+			<li>Gradients</li>
+			<li>drawImage using 6 parameters(x,y, startx,starty,endx,endy)</li>
+			<li>Shadows</li>
+			</ul><h2>
+			<a name="user-content-demos--benchmark" class="anchor" href="#demos--benchmark" aria-hidden="true"><span class="octicon octicon-link"></span></a>Demos &amp; Benchmark</h2>
+
+			<p>Demos are included in demo folder, you can <a href="http://tamats.com/projects/canvas2DtoWebGL/demo">test it here</a></p>
+
+			<h2>
+			<a name="user-content-usage" class="anchor" href="#usage" aria-hidden="true"><span class="octicon octicon-link"></span></a>Usage</h2>
+
+			<p>Include the library and dependencies</p>
+
+			<div class="highlight highlight-html"><pre><span class="nt">&lt;script </span><span class="na">src=</span><span class="s">"js/gl-matrix-min.js"</span><span class="nt">&gt;&lt;/script&gt;</span>
+			<span class="nt">&lt;script </span><span class="na">src=</span><span class="s">"js/litegl.min.js"</span><span class="nt">&gt;&lt;/script&gt;</span>
+			<span class="nt">&lt;script </span><span class="na">src=</span><span class="s">"js/Canvas2DtoWebGL.js"</span><span class="nt">&gt;&lt;/script&gt;</span>
+			</pre></div>
+
+			<p>Once you have your Canvas created (and before a context2D has been obtained), call this function:</p>
+
+			<div class="highlight highlight-js"><pre><span class="kd">var</span> <span class="nx">ctx</span> <span class="o">=</span> <span class="nx">enableWebGLCanvas</span><span class="p">(</span> <span class="nx">mycanvas</span> <span class="p">);</span>
+			</pre></div>
+
+			<p>During your rendering you must call this two functions, it helps set the flags accordingly.</p>
+
+			<div class="highlight highlight-js">
+			
+			<pre><span class="nx">ctx</span><span class="p">.</span><span class="nx">start</span><span class="p">();</span>
+<span class="c1">//your rendering code</span>
+<span class="c1">//...</span>
+
+<span class="nx">ctx</span><span class="p">.</span><span class="nx">finish</span><span class="p">();</span>
+</pre></div>
+
+			<h2>
+			<a name="user-content-feedback" class="anchor" href="#feedback" aria-hidden="true"><span class="octicon octicon-link"></span></a>Feedback</h2>
+
+			<p>You can write any feedback to <a href="mailto:javi.agenjo@gmail.com">javi.agenjo@gmail.com</a></p></article>
+
+		</div>
+	</div>
+</div>
+
+</body>
+</html>
+

@@ -10,6 +10,7 @@ padding: 0;
 
 body {
 	font: 16px Tahoma;
+	/*background-color: black;*/
 }
 
 #header {
@@ -31,4 +32,14 @@ button {
 
 button.selected {
 	color: white;
+}
+
+#code {
+	color: #AFA;
+	position: absolute;
+	top: 40px;
+	left: 10px;
+	display: none;
+	background-color: rgba(0,0,0,0.8);
+	padding: 10px;
 }

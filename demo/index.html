@@ -17,21 +17,27 @@
 <div id="header">
 	<strong>Canvas2DtoWebGL</strong>
 	<select>
-		<option data-demo="render_image">drawImage</option>
-		<option data-demo="render_images">drawImage transformed</option>
+		<option data-demo="render_drawImage">drawImage</option>
+		<option data-demo="render_drawImage_transformed">drawImage transformed</option>
 		<option data-demo="render_smoothing">imageSmoothingEnabled = false</option>
 		<option data-demo="render_lines1">beginPath -> stroke</option>
 		<option data-demo="render_lines2">moveTo lineTo</option>
 		<option data-demo="render_bezierCurveTo">bezierCurveTo</option>
+		<option data-demo="render_quadraticCurveTo">quadraticCurveTo</option>
 		<option data-demo="render_arc">arc</option>
 		<option data-demo="render_arc_width">arc + lineWidth</option>
 		<option data-demo="render_pattern">createPattern</option>
 		<option data-demo="render_benchmark_fillRect">Benchmark: fillRect</option>
 		<option data-demo="render_benchmark_drawImage">Benchmark: drawImage</option>
+		<option data-demo="">***** PARTIALLY SUPPORTED *****</option>
+		<option data-demo="render_fillText">fillText</option>
 	</select>
 	<button id="go_canvas" data-mode="canvas">GO Canvas2D</button>
 	<button id="go_webgl" data-mode="webgl">GO WebGL</button>
+	| 	<button id="watch_code">Watch Code</button>
 </div>
+
+<div id="code"></div>
 
 <script type="text/javascript">init();</script>
 

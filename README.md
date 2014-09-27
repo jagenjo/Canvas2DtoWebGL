@@ -1,24 +1,30 @@
 Canvas2DtoWebGL.js
 ==================
 
-Canvas2DtoWebGL.js ports almost all the methods from the regular Canvas2D context of HTML5 to WebGL calls, this improves performance in some cases and allows to mix 3D in your 2D Canvas.
+Canvas2DtoWebGL.js ports almost all the methods from the regular Canvas2D context of HTML5 to WebGL calls, this allows to mix 3D in your 2D Canvas and in some cases it could even improve the performance of your regular Canvas2D.
 It used [litegl.js](https://github.com/jagenjo/litegl.js) as the base WebGL library.
+To improve performance it doesn't generate garbage (reuses the same containers).
 
- * Supports rendering images and other canvas
- * Stroke lines with any width
- * Patterns created using images with createPattern
- * BezierCurves
- * It doesnt generate garbage (reuses the same containers)
+Fully supported functions:
 
-Partially supported:
- * Text rendering (it used a monospace font)
+ * translate, rotate, scale, transform, setTransform, save, restore
+ * clearRect
+ * drawImage (not the 6 params version), you can use images or canvas (video not tested)
+ * beginPath, lineTo, moveTo, closePath, stroke, rect, strokeRect, fillRect, arc
+ * fill (limited to convex shapes)
+ * createPattern with images
+ * bezierCurveTo and quadraticCurveTo
+ * fillText (it creates a texture atlas with all the characters)
+ * lineWidth (only one mode supported)
+ * strokeStyle, fillStyle, globalAlpha
 
 Not supported (yet):
- * Quadratic Curves
- * Concave polygon shapes
- * Gradients
+ * clip
+ * globalCompositeOperation
+ * concave polygon shapes
+ * createLinearGradient
  * drawImage using 6 parameters(x,y, startx,starty,endx,endy)
- * Shadows
+ * shadows
 
 Demos & Benchmark
 -----------------
