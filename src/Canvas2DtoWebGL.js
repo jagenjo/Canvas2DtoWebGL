@@ -707,7 +707,7 @@ function enableWebGLCanvas( canvas )
 				uv *= extra;\n\
 				uv = v_coord - uv * u_iCharSize + vec2(u_iCharSize*0.5);\n\
 				uv.y = 1.0 - uv.y;\n\
-				gl_FragColor = u_color * texture2D(u_texture, uv, -1.0  );\n\
+				gl_FragColor = vec4(u_color.xyz, u_color.a * texture2D(u_texture, uv, -1.0  ).a);\n\
 			}\n\
 			";
 
@@ -722,7 +722,7 @@ function enableWebGLCanvas( canvas )
 
 	ctx.fillText = ctx.strokeText = function(text,startx,starty)
 	{
-		var atlas = this.createFontAtlas( this._font_family );
+		var atlas = this.createFontAtlas( this._font_family, this._font_mode );
 		var info = atlas.info;
 
 		var points = text_vertices;
@@ -760,11 +760,11 @@ function enableWebGLCanvas( canvas )
 
 			var kern = kernings[ text[i] ];
 			if(i == 0)
-				x -= point_size * info.space * 2;
+				x -= point_size * kern["nwidth"] * 0.25;
 
 
 			points[vertices_index+0] = startx + x + point_size * 0.5;
-			points[vertices_index+1] = starty + y - point_size*0.25;
+			points[vertices_index+1] = starty + y - point_size * 0.25;
 			points[vertices_index+2] = 1;
 			vertices_index += 3;
 
@@ -781,7 +781,7 @@ function enableWebGLCanvas( canvas )
 
 		var offset = 0;
 		if(this.textAlign == "right")
-			offset = x;
+			offset = x + point_size * 0.5;
 		else if(this.textAlign == "center")
 			offset = x * 0.5;
 		if(offset)
@@ -806,20 +806,20 @@ function enableWebGLCanvas( canvas )
 
 	ctx.measureText = function(text)
 	{
-		var atlas = this.createFontAtlas( this._font_family );
+		var atlas = this.createFontAtlas( this._font_family, this._font_mode );
 		var spacing = point_size * atlas.info.spacing / atlas.info.char_size - 1 ;
 		return { width: text.length * spacing };
 	}
 
-	ctx.createFontAtlas = function(fontname, force)
+	ctx.createFontAtlas = function(fontname, fontmode, force)
 	{
 		fontname = fontname || "monospace";
+		fontmode = fontmode || "normal";
 
-		var texture = this.textures[":font_" + fontname];
+		var texture = this.textures[":font_" + fontname + ":" + fontmode];
 		if(texture && !force)
 			return texture;
 
-		var fontmode = "normal";//"bold";
 		var canvas = createCanvas(512,512);
 		//document.body.appendChild(canvas);
 		var font_size = (canvas.width * 0.09)|0;
@@ -847,7 +847,7 @@ function enableWebGLCanvas( canvas )
 		{
 			var character = String.fromCharCode(i+33);
 			var char_width = ctx.measureText(character).width;
-			kernings[character] = { "width": char_width };
+			kernings[character] = { "width": char_width, "nwidth": char_width / font_size };
 		}
 
 		for(var i = 0; i < 100; i++)//valid characters from 33 to 133
@@ -873,22 +873,9 @@ function enableWebGLCanvas( canvas )
 			}
 		}
 
-		/* try to put white the color layers, but doesnt work
-		var imgd = ctx.getImageData(0, 0, canvas.width, canvas.height);
-		var pix = imgd.data;
-		for (var i = 0, n = pix.length; i < n; i += 4) {
-			pix[i  ] = 255; // red
-			pix[i+1] = 255; // green
-			pix[i+2] = 255; // blue
-			// i+3 is alpha (the fourth element)
-		}
-		ctx.putImageData(imgd, 0, 0);
-		*/
-
 		texture = GL.Texture.fromImage(canvas, {magFilter: gl.LINEAR, minFilter: gl.LINEAR_MIPMAP_LINEAR, premultiply_alpha: false} );
 		texture.info = info; //font generation info
-		this.textures[":font_" + fontname] = texture;
-		return texture;
+		return this.textures[":font_" + fontname + ":" + fontmode] = texture;
 	}
 
 	//NOT TESTED
@@ -934,15 +921,27 @@ function enableWebGLCanvas( canvas )
 		set: function(v) { 
 			this._font = v;
 			var t = v.split(" ");
-			if(t.length == 2)
+			if(t.length == 3)
 			{
+				this._font_mode = t[0];
+				this._font_size = parseInt(t[1]);
+				if(this._font_size < 10) 
+					this._font_size = 10;
+				this._font_family = t[2];
+			}
+			else if(t.length == 2)
+			{
+				this._font_mode = "normal";
 				this._font_size = parseInt(t[0]);
 				if(this._font_size < 10) 
 					this._font_size = 10;
 				this._font_family = t[1];
 			}
 			else
+			{
+				this._font_mode = "normal";
 				this._font_family = t[0];
+			}
 		}
 	});
 
@@ -952,6 +951,7 @@ function enableWebGLCanvas( canvas )
 	ctx._font = "14px monospace";
 	ctx._font_family = "monospace";
 	ctx._font_size = "14px";
+	ctx._font_mode = "normal";
 
 	//STATE
 	ctx.strokeStyle = "rgba(0,0,0,1)";

@@ -264,6 +264,13 @@ function render_fillText(canvas, ctx)
 	var h = canvas.height;
 
 	ctx.fillStyle = "black";
+	ctx.font = "bold 80px Arial";
+	ctx.textAlign = "left";
+	ctx.fillText("Left", 0,100 );
+	ctx.textAlign = "right";
+	ctx.fillText("Right", w, 100 );
+
+
 	var fontsize = 40 + (Math.sin(time) * 20);
 	ctx.font = fontsize + "px Arial";
 	ctx.textAlign = "center";
