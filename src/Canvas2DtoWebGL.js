@@ -173,29 +173,32 @@ function enableWebGLCanvas( canvas )
 		var tex = null;
 		if(img.constructor === GL.Texture)
 		{
-			return img;
+			if(img._context_id == gl.context_id)
+				return img;
+			return null;
 		}
 		else
 		{
+			//same image could be used in several contexts
+			if(!img.gl)
+				img.gl = {};
+
+			//Regular image
 			if(img.src)
 			{
 				var wrap = gl.REPEAT;
-				tex = gl.textures[ img.src ];
-				if(!tex)
-					return gl.textures[ img.src ] = GL.Texture.fromImage(img, { magFilter: gl.LINEAR, minFilter: gl.LINEAR_MIPMAP_LINEAR, wrap: wrap, ignore_pot:true, premultipliedAlpha: true } );
-				return tex;
+
+				tex = img.gl[ gl.context_id ];
+				if(tex)
+					return tex;
+				return img.gl[ gl.context_id ] = GL.Texture.fromImage(img, { magFilter: gl.LINEAR, minFilter: gl.LINEAR_MIPMAP_LINEAR, wrap: wrap, ignore_pot:true, premultipliedAlpha: true } );
 			}
-			else //no src
+			else //probably a canvas
 			{
-				var uid = img._uid;
-				if(!uid)
-					uid = img._uid = last_uid++;
-				tex = gl.textures["canvas_" + uid];
-				if(!tex)
-					 tex = gl.textures["canvas_" + uid] = GL.Texture.fromImage(img, { minFilter: gl.LINEAR, magFilter: gl.LINEAR });
-				else
-					gl.textures["canvas_" + uid].uploadImage( img );
-				return tex;
+				tex = img.gl[ gl.context_id ];
+				if(tex)
+					return tex;
+				return img.gl[ gl.context_id ] = GL.Texture.fromImage(img, { minFilter: gl.LINEAR, magFilter: gl.LINEAR });
 			}
 		}
 
@@ -348,7 +351,7 @@ function enableWebGLCanvas( canvas )
 
 	ctx.fill = function()
 	{
-		if(global_index < 3)
+		if(global_index < 9)
 			return;
 
 		//if(is_rect)
@@ -357,12 +360,21 @@ function enableWebGLCanvas( canvas )
 		//update buffer
 		//global_buffer.upload( gl.STREAM_DRAW );
 		global_buffer.uploadRange(0, global_index * 4); //4 bytes per float
-
+		uniforms.u_viewport = viewport;
 		var shader = flat_primitive_shader;
+
+		//first the shadow
+		if( this._shadowcolor[3] > 0.0 )
+		{
+			uniforms.u_color = this._shadowcolor;
+			this.save();
+			this.translate( this.shadowOffsetX, this.shadowOffsetY );
+			shader.uniforms(uniforms).drawRange(global_mesh, gl.TRIANGLE_FAN, 0, global_index / 3);
+			this.restore();
+		}
 
 		uniforms.u_color = this._fillcolor;
 		uniforms.u_transform = this._matrix;
-		uniforms.u_viewport = viewport;
 
 		//pattern
 		if( this.fillStyle.constructor == GL.Texture )
@@ -383,7 +395,7 @@ function enableWebGLCanvas( canvas )
 	//basic stroke using gl.LINES
 	ctx.strokeThin = function()
 	{
-		if(global_index < 3)
+		if(global_index < 6)
 			return;
 
 		//update buffer
@@ -404,7 +416,7 @@ function enableWebGLCanvas( canvas )
 
 	ctx.stroke = function()
 	{
-		if(global_index < 3)
+		if(global_index < 6)
 			return;
 
 		if( (this.lineWidth * this._matrix[0]) <= 1.0 )
@@ -413,6 +425,7 @@ function enableWebGLCanvas( canvas )
 		var num_points = global_index / 3;
 		var vertices = lines_vertices;
 		var l = global_index;
+		var line_width = this.lineWidth * 0.5;
 
 		var points = global_vertices;
 
@@ -422,8 +435,20 @@ function enableWebGLCanvas( canvas )
 		var prev_delta_y = 0;
 		var average_x = 0;
 		var average_y = 0;
+		var first_delta_x = 0;
+		var first_delta_y = 0;
 
-		var line_width = this.lineWidth * 0.5;
+		if(points[0] == points[ global_index - 3 ] && points[1] == points[ global_index - 2 ])
+		{
+			delta_x = points[ global_index - 3 ] - points[ global_index - 6 ];
+			delta_y = points[ global_index - 2 ] - points[ global_index - 5 ];
+			var dist = Math.sqrt( delta_x*delta_x + delta_y*delta_y );
+			if(dist != 0)
+			{
+				delta_x = (delta_x / dist);
+				delta_y = (delta_y / dist);
+			}
+		}
 
 		var i, pos = 0;
 		for(i = 0; i < l-3; i+=3)
@@ -436,8 +461,13 @@ function enableWebGLCanvas( canvas )
 			var dist = Math.sqrt( delta_x*delta_x + delta_y*delta_y );
 			if(dist != 0)
 			{
-				delta_x = (delta_x / dist) * line_width;
-				delta_y = (delta_y / dist) * line_width;
+				delta_x = (delta_x / dist);
+				delta_y = (delta_y / dist);
+			}
+			if(i == 0)
+			{
+				first_delta_x = delta_x;
+				first_delta_y = delta_y;
 			}
 
 			average_x = delta_x + prev_delta_x;
@@ -446,42 +476,75 @@ function enableWebGLCanvas( canvas )
 			var dist = Math.sqrt( average_x*average_x + average_y*average_y );
 			if(dist != 0)
 			{
-				average_x = (average_x / dist) * line_width;
-				average_y = (average_y / dist) * line_width;
+				average_x = (average_x / dist);
+				average_y = (average_y / dist);
 			}
 
-			vertices[ pos+0 ] = points[i] - average_y;
-			vertices[ pos+1 ] = points[i+1] + average_x;
+			vertices[ pos+0 ] = points[i] - average_y * line_width;
+			vertices[ pos+1 ] = points[i+1] + average_x * line_width;
 			vertices[ pos+2 ] = 1;
-			vertices[ pos+3 ] = points[i] + average_y;
-			vertices[ pos+4 ] = points[i+1] - average_x;
+			vertices[ pos+3 ] = points[i] + average_y * line_width;
+			vertices[ pos+4 ] = points[i+1] - average_x * line_width;
 			vertices[ pos+5 ] = 1;
 
 			pos += 6;
 		}
 
-		var dist = Math.sqrt( delta_x*delta_x + delta_y*delta_y );
-		if(dist != 0)
+		//final points are tricky
+		if(points[0] == points[ global_index - 3 ] && points[1] == points[ global_index - 2 ])
 		{
-			delta_x = (delta_x / dist) * line_width;
-			delta_y = (delta_y / dist) * line_width;
+			average_x = delta_x + first_delta_x;
+			average_y = delta_y + first_delta_y;
+			var dist = Math.sqrt( average_x*average_x + average_y*average_y );
+			if(dist != 0)
+			{
+				average_x = (average_x / dist);
+				average_y = (average_y / dist);
+			}
+			vertices[ pos+0 ] = points[i] - average_y * line_width;
+			vertices[ pos+1 ] = points[i+1] + average_x * line_width;
+			vertices[ pos+2 ] = 1;
+			vertices[ pos+3 ] = points[i] + average_y * line_width;
+			vertices[ pos+4 ] = points[i+1] - average_x * line_width;
+			vertices[ pos+5 ] = 1;
+		}
+		else
+		{
+			var dist = Math.sqrt( delta_x*delta_x + delta_y*delta_y );
+			if(dist != 0)
+			{
+				average_x = (delta_x / dist);
+				average_y = (delta_y / dist);
+			}
+
+			vertices[ pos+0 ] = points[i] - (average_y - average_x) * line_width;
+			vertices[ pos+1 ] = points[i+1] + (average_x + average_y) * line_width;
+			vertices[ pos+2 ] = 1;
+			vertices[ pos+3 ] = points[i] + (average_y + average_x) * line_width;
+			vertices[ pos+4 ] = points[i+1] - (average_x - average_y) * line_width;
+			vertices[ pos+5 ] = 1;
 		}
 
-		vertices[ pos+0 ] = points[i] - delta_y + delta_x;
-		vertices[ pos+1 ] = points[i+1] + delta_x + delta_y;
-		vertices[ pos+2 ] = 1;
-		vertices[ pos+3 ] = points[i] + delta_y + delta_x;
-		vertices[ pos+4 ] = points[i+1] - delta_x + delta_y;
-		vertices[ pos+5 ] = 1;
 		pos += 6;
 
 		lines_buffer.upload(gl.STREAM_DRAW);
 		lines_buffer.uploadRange(0, pos * 4); //4 bytes per float
 
-		//gl.setLineWidth( this.lineWidth );
-		uniforms.u_color = this._strokecolor;
 		uniforms.u_transform = this._matrix;
 		uniforms.u_viewport = viewport;
+
+		//first the shadow
+		if( this._shadowcolor[3] > 0.0 )
+		{
+			uniforms.u_color = this._shadowcolor;
+			this.save();
+			this.translate( this.shadowOffsetX, this.shadowOffsetY );
+			flat_primitive_shader.uniforms(uniforms).drawRange(global_mesh, gl.TRIANGLE_STRIP, 0, pos / 3);
+			this.restore();
+		}
+
+		//gl.setLineWidth( this.lineWidth );
+		uniforms.u_color = this._strokecolor;
 		flat_primitive_shader.uniforms(uniforms).drawRange(lines_mesh, gl.TRIANGLE_STRIP, 0, pos / 3 );
 	}
 
@@ -610,8 +673,10 @@ function enableWebGLCanvas( canvas )
 		red:[1,0,0],
 		green:[0,1,0],
 		blue:[0,0,1],
+		violet:[1,0,1],
 		cyan:[0,1,1],
-		yellow:[1,1,0]
+		yellow:[1,1,0],
+		transparent: [0,0,0,0]
 	};
 
 	ctx.updateColor = function(hex, color)
@@ -621,10 +686,13 @@ function enableWebGLCanvas( canvas )
 
 		//for those hardcoded colors
 		var col = string_colors[hex];
-		if( col )
+		if( col !== undefined )
 		{
 			color.set( col );
-			color[3] = this.globalAlpha;
+			if(color.length == 3)
+				color[3] = this.globalAlpha;
+			else
+				color[3] *= this.globalAlpha;
 			return;
 		}
 	
@@ -702,9 +770,8 @@ function enableWebGLCanvas( canvas )
 			uniform vec2 u_viewport;\n\
 			varying vec2 v_coord;\n\
 			void main() {\n\
-				vec2 extra = vec2(1.0) - (vec2(floor(u_pointSize)) / u_viewport) * fract(u_pointSize) ;\n\
+				/*vec2 extra = vec2(1.0) - (vec2(floor(u_pointSize)) / u_viewport) * fract(u_pointSize)*/ ;\n\
 				vec2 uv = vec2(1.0 - gl_PointCoord.s, 1.0 - gl_PointCoord.t);\n\
-				uv *= extra;\n\
 				uv = v_coord - uv * u_iCharSize + vec2(u_iCharSize*0.5);\n\
 				uv.y = 1.0 - uv.y;\n\
 				gl_FragColor = vec4(u_color.xyz, u_color.a * texture2D(u_texture, uv, -1.0  ).a);\n\
@@ -908,6 +975,13 @@ function enableWebGLCanvas( canvas )
 		}
 	});
 
+	Object.defineProperty(gl, "shadowColor", {
+		get: function() { return this._shadowcolor; },
+		set: function(v) { 
+			this.updateColor( v, this._shadowcolor );
+		}
+	});
+
 	Object.defineProperty(gl, "globalAlpha", {
 		get: function() { return this._globalAlpha; },
 		set: function(v) { 
@@ -924,7 +998,7 @@ function enableWebGLCanvas( canvas )
 			if(t.length == 3)
 			{
 				this._font_mode = t[0];
-				this._font_size = parseInt(t[1]);
+				this._font_size = parseFloat(t[1]);
 				if(this._font_size < 10) 
 					this._font_size = 10;
 				this._font_family = t[2];
@@ -932,7 +1006,7 @@ function enableWebGLCanvas( canvas )
 			else if(t.length == 2)
 			{
 				this._font_mode = "normal";
-				this._font_size = parseInt(t[0]);
+				this._font_size = parseFloat(t[0]);
 				if(this._font_size < 10) 
 					this._font_size = 10;
 				this._font_family = t[1];
@@ -947,15 +1021,19 @@ function enableWebGLCanvas( canvas )
 
 	ctx._fillcolor = vec4.fromValues(0,0,0,1);
 	ctx._strokecolor = vec4.fromValues(0,0,0,1);
+	ctx._shadowcolor = vec4.fromValues(0,0,0,0);
 	ctx._globalAlpha = 1;
 	ctx._font = "14px monospace";
 	ctx._font_family = "monospace";
 	ctx._font_size = "14px";
 	ctx._font_mode = "normal";
 
+
 	//STATE
 	ctx.strokeStyle = "rgba(0,0,0,1)";
 	ctx.fillStyle = "rgba(0,0,0,1)";
+	ctx.shadowColor = "transparent";
+	ctx.shadowOffsetX = ctx.shadowOffsetY = 0;
 	ctx.globalAlpha = 1;
 	ctx.setLineWidth = ctx.lineWidth; //save the webgl function
 	ctx.lineWidth = 4; //set lineWidth as a number

@@ -2,6 +2,7 @@ var canvas = null;
 var ctx = null;
 var current_demo = render_drawImage;
 var start_time = Date.now();
+var time = (Date.now() - start_time) * 0.001;
 var img = new Image();
 img.src = "html5.png";
 var go_canvas = null;
@@ -30,6 +31,9 @@ function init()
 	function loop()
 	{
 		requestAnimationFrame(loop);
+
+		time = (Date.now() - start_time) * 0.001;
+
 		if(!ctx)
 			return;
 
@@ -78,7 +82,6 @@ function watchCode()
 function render_drawImage(canvas, ctx)
 {
 	ctx.clearRect(0,0,canvas.width,canvas.height);
-	var time = (Date.now() - start_time) * 0.001;
 	ctx.save();
 	ctx.translate( ( canvas.width - img.width*2 ) * 0.5, 0.5 * (canvas.height - img.height*2 ) );
 	ctx.scale( 2, 2);
@@ -90,7 +93,6 @@ function render_drawImage(canvas, ctx)
 function render_drawImage_transformed(canvas, ctx)
 {
 	ctx.clearRect(0,0,canvas.width,canvas.height);
-	var time = (Date.now() - start_time) * 0.001;
 
 	var num = 100;
 	for(var i = 0; i < num; i++)
@@ -108,7 +110,6 @@ function render_drawImage_transformed(canvas, ctx)
 function render_smoothing(canvas, ctx)
 {
 	ctx.clearRect(0,0,canvas.width,canvas.height);
-	var time = (Date.now() - start_time) * 0.001;
 
 	ctx.imageSmoothingEnabled = false;
 	ctx.save();
@@ -122,7 +123,6 @@ function render_smoothing(canvas, ctx)
 function render_pattern(canvas, ctx)
 {
 	ctx.clearRect(0,0,canvas.width,canvas.height);
-	var time = (Date.now() - start_time) * 0.001;
 	
 	var pattern = ctx.createPattern(img,"repeat");
 	ctx.fillStyle = pattern;
@@ -136,8 +136,6 @@ function render_pattern(canvas, ctx)
 function render_lines1(canvas, ctx)
 {
 	ctx.clearRect(0,0,canvas.width,canvas.height);
-	var time = (Date.now() - start_time) * 0.001;
-
 	ctx.strokeStyle = "black";
 
 	var num = canvas.width * 0.25;
@@ -154,8 +152,6 @@ function render_lines1(canvas, ctx)
 function render_lines2(canvas, ctx)
 {
 	ctx.clearRect(0,0,canvas.width,canvas.height);
-	var time = (Date.now() - start_time) * 0.001;
-
 	ctx.strokeStyle = "black";
 
 	var num = canvas.width * 0.25;
@@ -172,7 +168,6 @@ function render_lines2(canvas, ctx)
 function render_bezierCurveTo(canvas, ctx)
 {
 	ctx.clearRect(0,0,canvas.width,canvas.height);
-	var time = (Date.now() - start_time) * 0.001;
 
 	var w = canvas.width;
 	var h = canvas.height;
@@ -187,7 +182,6 @@ function render_bezierCurveTo(canvas, ctx)
 function render_quadraticCurveTo(canvas, ctx)
 {
 	ctx.clearRect(0,0,canvas.width,canvas.height);
-	var time = (Date.now() - start_time) * 0.001;
 
 	var w = canvas.width;
 	var h = canvas.height;
@@ -202,7 +196,6 @@ function render_quadraticCurveTo(canvas, ctx)
 function render_arc(canvas, ctx)
 {
 	ctx.clearRect(0,0,canvas.width,canvas.height);
-	var time = (Date.now() - start_time) * 0.001;
 
 	ctx.strokeStyle = "black";
 	ctx.beginPath();
@@ -213,7 +206,6 @@ function render_arc(canvas, ctx)
 function render_arc_width(canvas, ctx)
 {
 	ctx.clearRect(0,0,canvas.width,canvas.height);
-	var time = (Date.now() - start_time) * 0.001;
 
 	ctx.strokeStyle = "black";
 	ctx.lineWidth = 4;
@@ -226,7 +218,6 @@ function render_arc_width(canvas, ctx)
 function render_benchmark_fillRect(canvas, ctx)
 {
 	ctx.clearRect(0,0,canvas.width,canvas.height);
-	var time = (Date.now() - start_time) * 0.001;
 
 	var w = canvas.width;
 	var h = canvas.height;
@@ -246,7 +237,6 @@ function render_benchmark_fillRect(canvas, ctx)
 function render_benchmark_drawImage(canvas, ctx)
 {
 	ctx.clearRect(0,0,canvas.width,canvas.height);
-	var time = (Date.now() - start_time) * 0.001;
 
 	var w = canvas.width;
 	var h = canvas.height;
@@ -258,7 +248,6 @@ function render_benchmark_drawImage(canvas, ctx)
 function render_fillText(canvas, ctx)
 {
 	ctx.clearRect(0,0,canvas.width,canvas.height);
-	var time = (Date.now() - start_time) * 0.001;
 
 	var w = canvas.width;
 	var h = canvas.height;
@@ -276,4 +265,43 @@ function render_fillText(canvas, ctx)
 	ctx.textAlign = "center";
 	var text = time.toFixed(2) + " seconds elapsed"
 	ctx.fillText(text, w * 0.5, h * 0.5 );
+}
+
+function render_concaveShapes(canvas, ctx)
+{
+	ctx.clearRect(0,0,canvas.width,canvas.height);
+	var w = canvas.width;
+	var h = canvas.height;
+	ctx.fillStyle = "black";
+	ctx.save();
+	ctx.translate(w*0.5,h*0.5);
+
+	ctx.beginPath();
+	ctx.moveTo(-100,-100);
+	ctx.lineTo(0,-50 + Math.sin(time)*100);
+	ctx.lineTo(100,-100);
+	ctx.lineTo(100,100);
+	ctx.lineTo(-100,100);
+	ctx.closePath();
+	ctx.fill();
+
+	ctx.restore();
+}
+
+function render_clip(canvas, ctx)
+{
+	ctx.clearRect(0,0,canvas.width,canvas.height);
+	var w = canvas.width;
+	var h = canvas.height;
+	ctx.fillStyle = "black";
+	ctx.save();
+	ctx.translate(w*0.5,h*0.5);
+
+
+	ctx.beginPath();
+	ctx.arc(0,0,100,0,2*Math.PI);
+	ctx.clip();
+	ctx.fillRect(Math.sin(time)*100-50,0,100,100);
+
+	ctx.restore();
 }
