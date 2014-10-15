@@ -265,6 +265,10 @@ function render_fillText(canvas, ctx)
 	ctx.textAlign = "center";
 	var text = time.toFixed(2) + " seconds elapsed"
 	ctx.fillText(text, w * 0.5, h * 0.5 );
+
+	ctx.font = "40px Arial";
+	ctx.fillText("measureText: " + (ctx.measureText("one little sentence").width).toFixed(2), w * 0.5, h * 0.5 + 50);
+
 }
 
 function render_concaveShapes(canvas, ctx)
@@ -303,5 +307,23 @@ function render_clip(canvas, ctx)
 	ctx.clip();
 	ctx.fillRect(Math.sin(time)*100-50,0,100,100);
 
+	ctx.restore();
+}
+
+function render_rotatedText(canvas, ctx)
+{
+	ctx.clearRect(0,0,canvas.width,canvas.height);
+
+	var w = canvas.width;
+	var h = canvas.height;
+
+	var fontsize = 50;
+	ctx.font = fontsize + "px Arial";
+	ctx.textAlign = "center";
+	var text = "Rotated text";
+	ctx.save();
+	ctx.translate(w * 0.5, h * 0.5);
+	ctx.rotate( time );
+	ctx.fillText(text, 0,0 );
 	ctx.restore();
 }

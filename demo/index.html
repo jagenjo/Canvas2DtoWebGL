@@ -17,23 +17,30 @@
 <div id="header">
 	<strong>Canvas2DtoWebGL</strong>
 	<select>
-		<option data-demo="render_drawImage">drawImage</option>
-		<option data-demo="render_drawImage_transformed">drawImage transformed</option>
-		<option data-demo="render_smoothing">imageSmoothingEnabled = false</option>
-		<option data-demo="render_lines1">beginPath -> stroke</option>
-		<option data-demo="render_lines2">moveTo lineTo</option>
-		<option data-demo="render_bezierCurveTo">bezierCurveTo</option>
-		<option data-demo="render_quadraticCurveTo">quadraticCurveTo</option>
-		<option data-demo="render_arc">arc</option>
-		<option data-demo="render_arc_width">arc + lineWidth</option>
-		<option data-demo="render_pattern">createPattern</option>
-		<option data-demo="render_fillText">fillText</option>
-		<option data-demo="">*** NOT SUPPORTED ****</option>
-		<option data-demo="render_concaveShapes">concave shapes</option>
-		<option data-demo="render_clip">clip</option>
-		<option data-demo="">*** BENCHMARKS ****</option>
-		<option data-demo="render_benchmark_fillRect">Benchmark: fillRect</option>
-		<option data-demo="render_benchmark_drawImage">Benchmark: drawImage</option>
+		<optgroup label="Supported">
+			<option data-demo="render_drawImage">drawImage</option>
+			<option data-demo="render_drawImage_transformed">drawImage transformed</option>
+			<option data-demo="render_smoothing">imageSmoothingEnabled = false</option>
+			<option data-demo="render_lines1">beginPath -> stroke</option>
+			<option data-demo="render_lines2">moveTo lineTo</option>
+			<option data-demo="render_bezierCurveTo">bezierCurveTo</option>
+			<option data-demo="render_quadraticCurveTo">quadraticCurveTo</option>
+			<option data-demo="render_arc">arc</option>
+			<option data-demo="render_arc_width">arc + lineWidth</option>
+			<option data-demo="render_pattern">createPattern</option>
+		</optgroup>
+		<optgroup label="Partially supported">
+			<option data-demo="render_fillText">fillText</option>
+		</optgroup>
+		<optgroup label="Not supported">
+			<option data-demo="render_concaveShapes">concave shapes</option>
+			<option data-demo="render_clip">clip</option>
+			<option data-demo="render_rotatedText">rotated Text</option>
+		</optgroup>
+		<optgroup label="Benchmarks">
+			<option data-demo="render_benchmark_fillRect">Benchmark: fillRect</option>
+			<option data-demo="render_benchmark_drawImage">Benchmark: drawImage</option>
+		</optgroup>
 	</select>
 	<button id="go_canvas" data-mode="canvas">GO Canvas2D</button>
 	<button id="go_webgl" data-mode="webgl">GO WebGL</button>

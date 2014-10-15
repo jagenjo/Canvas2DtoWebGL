@@ -17,6 +17,7 @@ function enableWebGLCanvas( canvas )
 	//settings
 	var curveSubdivisions = 50;
 	var max_points = 10000; //max amount of vertex allowed to have in a single primitive
+	var max_characters = 1000; //max amount of characters allowed to have in a single fillText
 
 
 	//get the context	
@@ -42,7 +43,7 @@ function enableWebGLCanvas( canvas )
 	var global_index = 0;
 	var global_vertices = new Float32Array( max_points * 3 );
 	var global_mesh = new GL.Mesh();
-	var global_buffer = global_mesh.addVertexBuffer("vertices", null, null, global_vertices, gl.STREAM_DRAW );
+	var global_buffer = global_mesh.createVertexBuffer("vertices", null, null, global_vertices, gl.STREAM_DRAW );
 	var quad_mesh = GL.Mesh.getScreenQuad();
 	var is_rect = false;
 
@@ -102,6 +103,7 @@ function enableWebGLCanvas( canvas )
 	var tmp_vec2 = vec2.create();
 	var tmp_vec2b = vec2.create();
 	ctx._stack = [];
+	var global_angle = 0;
 	var viewport = vec2.fromValues(1,1);
 
 	ctx.translate = function(x,y)
@@ -114,6 +116,7 @@ function enableWebGLCanvas( canvas )
 	ctx.rotate = function(angle)
 	{
 		mat3.rotate( this._matrix, this._matrix, angle );
+		global_angle += angle;
 	}
 
 
@@ -134,6 +137,7 @@ function enableWebGLCanvas( canvas )
 			this._matrix.set( this._stack.pop() );
 		else
 			mat3.identity( this._matrix );
+		global_angle = Math.atan2( this._matrix[0], this._matrix[1] );
 	}
 
 	ctx.transform = function(a,b,c,d,e,f) {
@@ -149,6 +153,7 @@ function enableWebGLCanvas( canvas )
 		m[8] = 1;
 
 		mat3.multiply( this._matrix, this._matrix, m );
+		global_angle = Math.atan2( this._matrix[0], this._matrix[1] );
 	}
 
 	ctx.setTransform = function(a,b,c,d,e,f) {
@@ -163,6 +168,7 @@ function enableWebGLCanvas( canvas )
 		m[7] = 0;
 		m[8] = 1;
 		//this._matrix.set([a,c,e,b,d,f,0,0,1]);
+		global_angle = Math.atan2( this._matrix[0], this._matrix[1] );
 	}
 
 	//Images
@@ -412,7 +418,7 @@ function enableWebGLCanvas( canvas )
 	//advanced stroke (it takes width into account)
 	var lines_vertices = new Float32Array( max_points * 3 );
 	var lines_mesh = new GL.Mesh();
-	var lines_buffer = lines_mesh.addVertexBuffer("vertices", null, null, lines_vertices, gl.STREAM_DRAW );
+	var lines_buffer = lines_mesh.createVertexBuffer("vertices", null, null, lines_vertices, gl.STREAM_DRAW );
 
 	ctx.stroke = function()
 	{
@@ -740,7 +746,7 @@ function enableWebGLCanvas( canvas )
 	}
 
 	//extra
-	var TEXT_VERTEX_SHADER = "\n\
+	var POINT_TEXT_VERTEX_SHADER = "\n\
 			precision highp float;\n\
 			attribute vec3 a_vertex;\n\
 			attribute vec2 a_coord;\n\
@@ -761,7 +767,64 @@ function enableWebGLCanvas( canvas )
 			}\n\
 			";
 
-	var TEXT_FRAGMENT_SHADER = "\n\
+	var POINT_TEXT_FRAGMENT_SHADER = "\n\
+			precision highp float;\n\
+			uniform sampler2D u_texture;\n\
+			uniform float u_iCharSize;\n\
+			uniform vec4 u_color;\n\
+			uniform float u_pointSize;\n\
+			uniform vec2 u_viewport;\n\
+			uniform vec2 u_angle_sincos;\n\
+			varying vec2 v_coord;\n\
+			void main() {\n\
+				vec2 uv = vec2(1.0 - gl_PointCoord.s, gl_PointCoord.t);\n\
+				uv = vec2( ((uv.y - 0.5) * u_angle_sincos.y - (uv.x - 0.5) * u_angle_sincos.x) + 0.5, ((uv.x - 0.5) * u_angle_sincos.y + (uv.y - 0.5) * u_angle_sincos.x) + 0.5);\n\
+				uv = v_coord - uv * u_iCharSize + vec2(u_iCharSize*0.5);\n\
+				uv.y = 1.0 - uv.y;\n\
+				gl_FragColor = vec4(u_color.xyz, u_color.a * texture2D(u_texture, uv, -1.0  ).a);\n\
+			}\n\
+			";
+
+	/*
+	var max_triangle_characters = 64;
+	var triangle = new Float32Array([-1,1,0, -1,-1,0, 1,-1,0, -1,1,0, 1,-1,0, 1,1,0]);
+	var triangle_text_vertices = new Float32Array( max_triangle_characters * 6 * 3 );
+	var triangle_text_mesh = new GL.Mesh();
+	var triangle_text_vertices_buffer = triangle_text_mesh.createVertexBuffer("vertices", null, null, triangle_text_vertices );
+	var tv = triangle_text_vertices;
+	for(var i = 0; i < triangle_text_vertices.length; i += 6*3)
+	{
+		tv.set(triangle, i);
+		tv[2] = tv[5] = tv[8] = tv[11] = t[14] = t[17] = i / (6*3);
+	}
+	triangle_text_vertices_buffer.upload();
+
+	var TRIANGLE_TEXT_VERTEX_SHADER = "\n\
+			precision highp float;\n\
+			#define MAX_CHARS 64;
+			attribute vec3 a_vertex;\n\
+			varying vec2 v_coord;\n\
+			uniform vec2 u_viewport;\n\
+			uniform vec2 u_charPos[ MAX_CHARS ];\n\
+			uniform vec2 u_charCoord[ MAX_CHARS ];\n\
+			uniform mat3 u_transform;\n\
+			uniform float u_pointSize;\n\
+			void main() { \n\
+				vec3 pos = a_vertex;\n\
+				v_coord = a_vertex * 0.5 + vec2(0.5);\n\
+				int char_index = (int)pos.z;\n\
+				pos.z = 1.0;\n\
+				pos.xz = pos.xz * u_pointSize + u_charPos[char_index];\n\
+				pos = u_transform * pos;\n\
+				pos.z = 0.0;\n\
+				//normalize\n\
+				pos.x = (2.0 * pos.x / u_viewport.x) - 1.0;\n\
+				pos.y = -((2.0 * pos.y / u_viewport.y) - 1.0);\n\
+				gl_Position = vec4(pos, 1.0); \n\
+			}\n\
+			";
+
+	var TRIANGLE_TEXT_FRAGMENT_SHADER = "\n\
 			precision highp float;\n\
 			uniform sampler2D u_texture;\n\
 			uniform float u_iCharSize;\n\
@@ -770,34 +833,33 @@ function enableWebGLCanvas( canvas )
 			uniform vec2 u_viewport;\n\
 			varying vec2 v_coord;\n\
 			void main() {\n\
-				/*vec2 extra = vec2(1.0) - (vec2(floor(u_pointSize)) / u_viewport) * fract(u_pointSize)*/ ;\n\
 				vec2 uv = vec2(1.0 - gl_PointCoord.s, 1.0 - gl_PointCoord.t);\n\
 				uv = v_coord - uv * u_iCharSize + vec2(u_iCharSize*0.5);\n\
 				uv.y = 1.0 - uv.y;\n\
 				gl_FragColor = vec4(u_color.xyz, u_color.a * texture2D(u_texture, uv, -1.0  ).a);\n\
 			}\n\
 			";
+	*/
 
 	//text rendering
-	var max_characters = 1000;
-	var	text_shader = new GL.Shader( TEXT_VERTEX_SHADER, TEXT_FRAGMENT_SHADER );
-	var text_vertices = new Float32Array( max_characters * 3 );
-	var text_coords = new Float32Array( max_characters * 2 );
-	var text_mesh = new GL.Mesh();
-	var text_vertices_buffer = text_mesh.addVertexBuffer("vertices", null, null, text_vertices, gl.STREAM_DRAW );
-	var text_coords_buffer = text_mesh.addVertexBuffer("coords", null, null, text_coords, gl.STREAM_DRAW );
+	var	point_text_shader = new GL.Shader( POINT_TEXT_VERTEX_SHADER, POINT_TEXT_FRAGMENT_SHADER );
+	var point_text_vertices = new Float32Array( max_characters * 3 );
+	var point_text_coords = new Float32Array( max_characters * 2 );
+	var point_text_mesh = new GL.Mesh();
+	var point_text_vertices_buffer = point_text_mesh.createVertexBuffer("vertices", null, null, point_text_vertices, gl.STREAM_DRAW );
+	var point_text_coords_buffer = point_text_mesh.createVertexBuffer("coords", null, null, point_text_coords, gl.STREAM_DRAW );
 
 	ctx.fillText = ctx.strokeText = function(text,startx,starty)
 	{
 		var atlas = this.createFontAtlas( this._font_family, this._font_mode );
 		var info = atlas.info;
 
-		var points = text_vertices;
-		var coords = text_coords;
+		var points = point_text_vertices;
+		var coords = point_text_coords;
 		var point_size = this._font_size * 1.1;
 
-		if(point_size < 10)
-			point_size = 10;
+		if(point_size < 1)
+			point_size = 1;
 		var char_size = info.char_size;
 
 		var x = 0;
@@ -859,21 +921,27 @@ function enableWebGLCanvas( canvas )
 		atlas.bind(0);
 
 		//var mesh = GL.Mesh.load({ vertices: points, coords: coords });
-		text_vertices_buffer.uploadRange(0,vertices_index*4);
-		text_coords_buffer.uploadRange(0,coords_index*4);
+		point_text_vertices_buffer.uploadRange(0,vertices_index*4);
+		point_text_coords_buffer.uploadRange(0,coords_index*4);
 
 		uniforms.u_color = this._fillcolor;
-		uniforms.u_pointSize = point_size * this._matrix[0];
+		uniforms.u_pointSize = point_size * vec2.length( this._matrix );
 		uniforms.u_iCharSize = info.char_size / atlas.width;
 		uniforms.u_transform = this._matrix;
 		uniforms.u_viewport = viewport;
+		if(!uniforms.u_angle_sincos)
+			uniforms.u_angle_sincos = vec2.create();
+		uniforms.u_angle_sincos[0] = Math.sin(-global_angle);
+		uniforms.u_angle_sincos[1] = Math.cos(-global_angle);
 
-		text_shader.uniforms(uniforms).drawRange(text_mesh, gl.POINTS, 0, vertices_index / 3 );
+		point_text_shader.uniforms(uniforms).drawRange(point_text_mesh, gl.POINTS, 0, vertices_index / 3 );
 	}
 
 	ctx.measureText = function(text)
 	{
 		var atlas = this.createFontAtlas( this._font_family, this._font_mode );
+		var info = atlas.info;
+		var point_size = this._font_size * 1.1;
 		var spacing = point_size * atlas.info.spacing / atlas.info.char_size - 1 ;
 		return { width: text.length * spacing };
 	}
