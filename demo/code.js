@@ -37,14 +37,14 @@ function init()
 		if(!ctx)
 			return;
 
-		if(ctx.start)
-			ctx.start();
+		if(ctx.start2D)
+			ctx.start2D();
 
 		if (current_demo)
 			current_demo(canvas, ctx);
 
-		if(ctx.finish)
-			ctx.finish();
+		if(ctx.finish2D)
+			ctx.finish2D();
 	}
 }
 
@@ -87,6 +87,16 @@ function render_drawImage(canvas, ctx)
 	ctx.scale( 2, 2);
 	ctx.drawImage(img, 0,0);
 	ctx.drawImage(img, 50,50);
+	ctx.restore();
+}
+
+function render_drawImage_partial(canvas, ctx)
+{
+	ctx.clearRect(0,0,canvas.width,canvas.height);
+	ctx.save();
+	ctx.translate( ( canvas.width - img.width*2 ) * 0.5, 0.5 * (canvas.height - img.height*2 ) );
+	ctx.scale( 2, 2);
+	ctx.drawImage(img, Math.sin(time*1.2) * 50, Math.sin(time) * 50,100,100,0,0,100,100 );
 	ctx.restore();
 }
 
@@ -327,3 +337,29 @@ function render_rotatedText(canvas, ctx)
 	ctx.fillText(text, 0,0 );
 	ctx.restore();
 }
+
+function render_benchmark_fillText(canvas, ctx)
+{
+	ctx.clearRect(0,0,canvas.width,canvas.height);
+
+	var w = canvas.width;
+	var h = canvas.height;
+
+	var fontsize = 20;
+	ctx.font = fontsize + "px Arial";
+	ctx.textAlign = "center";
+
+	for(var i = 0; i < canvas.width; i += canvas.width / 50)
+	{
+		for(var j = 0; j < canvas.height; j += canvas.height / 50)
+		{
+			var text = "Text";
+			ctx.save();
+			ctx.translate(i,j);
+			ctx.rotate( time );
+			ctx.fillText(text, 0,0 );
+			ctx.restore();
+		}
+	}
+}
+

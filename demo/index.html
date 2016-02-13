@@ -19,6 +19,7 @@
 	<select>
 		<optgroup label="Supported">
 			<option data-demo="render_drawImage">drawImage</option>
+			<option data-demo="render_drawImage_partial">drawImage partial</option>
 			<option data-demo="render_drawImage_transformed">drawImage transformed</option>
 			<option data-demo="render_smoothing">imageSmoothingEnabled = false</option>
 			<option data-demo="render_lines1">beginPath -> stroke</option>
@@ -31,15 +32,16 @@
 		</optgroup>
 		<optgroup label="Partially supported">
 			<option data-demo="render_fillText">fillText</option>
+			<option data-demo="render_rotatedText">rotated Text</option>
 		</optgroup>
 		<optgroup label="Not supported">
 			<option data-demo="render_concaveShapes">concave shapes</option>
 			<option data-demo="render_clip">clip</option>
-			<option data-demo="render_rotatedText">rotated Text</option>
 		</optgroup>
 		<optgroup label="Benchmarks">
 			<option data-demo="render_benchmark_fillRect">Benchmark: fillRect</option>
 			<option data-demo="render_benchmark_drawImage">Benchmark: drawImage</option>
+			<option data-demo="render_benchmark_fillText">Benchmark: fillText</option>
 		</optgroup>
 	</select>
 	<button id="go_canvas" data-mode="canvas">GO Canvas2D</button>

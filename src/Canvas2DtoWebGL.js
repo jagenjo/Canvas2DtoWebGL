@@ -4,8 +4,10 @@
 if(typeof(GL) == "undefined")
 	throw("litegl.js must be included to use enableWebGLCanvas");
 
-function enableWebGLCanvas( canvas )
+function enableWebGLCanvas( canvas, options )
 {
+	options = options || {};
+
 	if(!canvas.is_webgl)
 	{
 		var gl = canvas.getContext("webgl");
@@ -31,12 +33,12 @@ function enableWebGLCanvas( canvas )
 	var prev_gl = null;
 
 	var ctx = canvas.ctx = gl;
-	canvas.ctx.textures = {};
+	ctx.WebGLCanvas = {};
 	var white = vec4.fromValues(1,1,1,1);
 
 	//some generic shaders
-	var	flat_shader = new GL.Shader( Shader.QUAD_VERTEX_SHADER, Shader.SCREEN_FLAT_FRAGMENT_SHADER );
-	var	texture_shader = new GL.Shader( Shader.QUAD_VERTEX_SHADER, Shader.SCREEN_FRAGMENT_SHADER );
+	var	flat_shader = new GL.Shader( GL.Shader.QUAD_VERTEX_SHADER, GL.Shader.SCREEN_FLAT_FRAGMENT_SHADER );
+	var	texture_shader = new GL.Shader( GL.Shader.QUAD_VERTEX_SHADER, GL.Shader.SCREEN_COLORED_FRAGMENT_SHADER );
 	var circle = GL.Mesh.circle({size:1});
 
 	//reusing same buffer
@@ -46,16 +48,27 @@ function enableWebGLCanvas( canvas )
 	var global_buffer = global_mesh.createVertexBuffer("vertices", null, null, global_vertices, gl.STREAM_DRAW );
 	var quad_mesh = GL.Mesh.getScreenQuad();
 	var is_rect = false;
+	var extra_projection = mat4.create();
 
 	var uniforms = {
 		u_texture: 0
 	};
+
+	var extra_macros = {};
+	if(options.allow3D)
+		extra_macros.EXTRA_PROJECTION = "";
+
+	//used to store font atlas textures (images are not stored here)
+	var textures = {};
 
 	var vertex_shader = "\n\
 			precision highp float;\n\
 			attribute vec3 a_vertex;\n\
 			uniform vec2 u_viewport;\n\
 			uniform mat3 u_transform;\n\
+			#ifdef EXTRA_PROJECTION\n\
+				uniform mat4 u_projection;\n\
+			#endif\n\
 			varying float v_visible;\n\
 			void main() { \n\
 				vec3 pos = a_vertex;\n\
@@ -65,6 +78,9 @@ function enableWebGLCanvas( canvas )
 				//normalize\n\
 				pos.x = (2.0 * pos.x / u_viewport.x) - 1.0;\n\
 				pos.y = -((2.0 * pos.y / u_viewport.y) - 1.0);\n\
+				#ifdef EXTRA_PROJECTION\n\
+					pos = (u_projection * mat4(pos,1.0)).xz;\n\
+				#endif\n\
 				gl_Position = vec4(pos, 1.0); \n\
 			}\n\
 			";
@@ -78,29 +94,48 @@ function enableWebGLCanvas( canvas )
 					discard;\n\
 				gl_FragColor = u_color;\n\
 			}\n\
-		");
+		", extra_macros );
+
+	var	textured_transform_shader = new GL.Shader(GL.Shader.QUAD_VERTEX_SHADER,"\n\
+			precision highp float;\n\
+			uniform sampler2D u_texture;\n\
+			uniform vec4 u_color;\n\
+			uniform vec4 u_texture_transform;\n\
+			varying vec2 v_coord;\n\
+			void main() {\n\
+				vec2 uv = v_coord * u_texture_transform.zw + vec2(u_texture_transform.x,0.0);\n\
+				uv.y = uv.y - u_texture_transform.y + (1.0 - u_texture_transform.w);\n\
+				uv = clamp(uv,vec2(0.0),vec2(1.0));\n\
+				gl_FragColor = u_color * texture2D(u_texture, uv);\n\
+			}\n\
+		", extra_macros );
 
 	var	textured_primitive_shader = new GL.Shader(vertex_shader,"\n\
 			precision highp float;\n\
 			varying float v_visible;\n\
 			uniform vec4 u_color;\n\
 			uniform sampler2D u_texture;\n\
-			uniform vec2 u_itexture_size;\n\
+			uniform vec4 u_texture_transform;\n\
 			uniform vec2 u_viewport;\n\
 			uniform mat3 u_itransform;\n\
 			void main() {\n\
 				vec2 pos = (u_itransform * vec3( gl_FragCoord.s, u_viewport.y - gl_FragCoord.t,1.0)).xy;\n\
-				pos *= vec2( (u_viewport.x * u_itexture_size.x), (u_viewport.y * u_itexture_size.y) );\n\
-				vec2 uv = fract(pos / u_viewport);\n\
+				pos *= vec2( (u_viewport.x * u_texture_transform.z), (u_viewport.y * u_texture_transform.w) );\n\
+				vec2 uv = fract(pos / u_viewport) + u_texture_transform.xy;\n\
 				uv.y = 1.0 - uv.y;\n\
 				gl_FragColor = u_color * texture2D( u_texture, uv);\n\
 			}\n\
-		");
+		", extra_macros );
+
+	//some people may reuse it
+	ctx.WebGLCanvas.vertex_shader = vertex_shader;
 
 	//STACK and TRANSFORM
 	ctx._matrix = mat3.create();
 	var tmp_mat3 = mat3.create();
 	var tmp_vec2 = vec2.create();
+	var tmp_vec4 = vec4.create();
+	var tmp_vec4b = vec4.create();
 	var tmp_vec2b = vec2.create();
 	ctx._stack = [];
 	var global_angle = 0;
@@ -119,7 +154,6 @@ function enableWebGLCanvas( canvas )
 		global_angle += angle;
 	}
 
-
 	ctx.scale = function(x,y)
 	{
 		tmp_vec2[0] = x;
@@ -137,7 +171,7 @@ function enableWebGLCanvas( canvas )
 			this._matrix.set( this._stack.pop() );
 		else
 			mat3.identity( this._matrix );
-		global_angle = Math.atan2( this._matrix[0], this._matrix[1] );
+		global_angle = Math.atan2( this._matrix[3], this._matrix[4] ); //use up vector
 	}
 
 	ctx.transform = function(a,b,c,d,e,f) {
@@ -174,6 +208,7 @@ function enableWebGLCanvas( canvas )
 	//Images
 	var last_uid = 1;
 
+	//textures are stored inside images, so as long as the image exist in memory, the texture will exist
 	function getTexture( img )
 	{
 		var tex = null;
@@ -211,12 +246,26 @@ function enableWebGLCanvas( canvas )
 		return null;
 	}
 
-	ctx.drawImage = function( img, x, y, w, h )
+	ctx.drawImage = function( img, x, y, w, h, shader )
 	{
-		if(!img || img.width == 0 || img.height == 0) return;
+		if(!img || img.width == 0 || img.height == 0) 
+			return;
 
 		var tex = getTexture(img);
-		if(!tex) return;
+		if(!tex)
+			return;
+
+		if(arguments.length == 9) //img, sx,sy,sw,sh, x,y,w,h
+		{
+			tmp_vec4b.set([x/img.width,y/img.height,w/img.width,h/img.height]);
+			x = arguments[5];
+			y = arguments[6];
+			w = arguments[7];
+			h = arguments[8];
+			shader = textured_transform_shader;
+		}
+		else
+			tmp_vec4b.set([0,0,1,1]); //reset texture transform
 
 		tmp_vec2[0] = x; tmp_vec2[1] = y;
 		tmp_vec2b[0] = w === undefined ? tex.width : w;
@@ -225,13 +274,21 @@ function enableWebGLCanvas( canvas )
 		tex.bind(0);
 		gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, this.imageSmoothingEnabled ? gl.LINEAR : gl.NEAREST );
 
-		uniforms.u_color = this.tintImages ? this._fillColor : white;
+		if(!this.tintImages)
+		{
+			tmp_vec4[0] = tmp_vec4[1] = tmp_vec4[2] = 1.0;	tmp_vec4[3] = this._globalAlpha;
+		}
+
+		uniforms.u_color = this.tintImages ? this._fillcolor : tmp_vec4;
 		uniforms.u_position = tmp_vec2;
 		uniforms.u_size = tmp_vec2b;
 		uniforms.u_transform = this._matrix;
+		uniforms.u_texture_transform = tmp_vec4b;
 		uniforms.u_viewport = viewport;
 
-		texture_shader.uniforms(uniforms).draw(quad_mesh);
+		shader = shader || texture_shader;
+
+		shader.uniforms( uniforms ).draw(quad_mesh);
 	}
 
 	ctx.createPattern = function( img )
@@ -388,7 +445,8 @@ function enableWebGLCanvas( canvas )
 			var tex = this.fillStyle;
 			uniforms.u_color = [1,1,1, this.globalAlpha]; 
 			uniforms.u_texture = 0;
-			uniforms.u_itexture_size = [1/tex.width, 1/tex.height];
+			tmp_vec4.set([0,0,1/tex.width, 1/tex.height]);
+			uniforms.u_texture_transform = tmp_vec4;
 			uniforms.u_itransform = mat3.invert( tmp_mat3, this._matrix );
 			tex.bind(0);
 			shader = textured_primitive_shader;
@@ -551,7 +609,7 @@ function enableWebGLCanvas( canvas )
 
 		//gl.setLineWidth( this.lineWidth );
 		uniforms.u_color = this._strokecolor;
-		flat_primitive_shader.uniforms(uniforms).drawRange(lines_mesh, gl.TRIANGLE_STRIP, 0, pos / 3 );
+		flat_primitive_shader.uniforms( uniforms ).drawRange(lines_mesh, gl.TRIANGLE_STRIP, 0, pos / 3 );
 	}
 
 
@@ -649,12 +707,14 @@ function enableWebGLCanvas( canvas )
 	}
 
 	//control funcs: used to set flags at the beginning and the end of the render
-	ctx.start = function()
+	ctx.start2D = function()
 	{
 		prev_gl = window.gl;
 		window.gl = this;
+		var gl = this;
 
-		viewport = gl.getViewport().subarray(2,4);
+		viewport[0] = gl.viewport_data[2];
+		viewport[1] = gl.viewport_data[3];
 		gl.disable( gl.CULL_FACE );
 		gl.disable( gl.DEPTH_TEST );
 		gl.enable( gl.BLEND );
@@ -664,85 +724,11 @@ function enableWebGLCanvas( canvas )
 		is_rect = false;
 	}
 
-	ctx.finish = function()
+	ctx.finish2D = function()
 	{
 		global_index = 0;
 		gl.lineWidth = 1;
 		window.gl = prev_gl;
-	}
-
-
-	//to change the color
-	var string_colors = {
-		white:[1,1,1],
-		black:[0,0,0],
-		red:[1,0,0],
-		green:[0,1,0],
-		blue:[0,0,1],
-		violet:[1,0,1],
-		cyan:[0,1,1],
-		yellow:[1,1,0],
-		transparent: [0,0,0,0]
-	};
-
-	ctx.updateColor = function(hex, color)
-	{
-		if(typeof(hex) != "string")
-			return;
-
-		//for those hardcoded colors
-		var col = string_colors[hex];
-		if( col !== undefined )
-		{
-			color.set( col );
-			if(color.length == 3)
-				color[3] = this.globalAlpha;
-			else
-				color[3] *= this.globalAlpha;
-			return;
-		}
-	
-		//rgba colors
-		var pos = hex.indexOf("rgba(");
-		if(pos != -1)
-		{
-			var str = hex.substr(5);
-			str = str.split(",");
-			color[0] = parseInt( str[0] ) / 255;
-			color[1] = parseInt( str[1] ) / 255;
-			color[2] = parseInt( str[2] ) / 255;
-			color[3] = parseFloat( str[3] ) * this.globalAlpha;
-			return;
-		}
-
-		color[3] = this.globalAlpha;
-
-		//rgb colors
-		var pos = hex.indexOf("rgb(");
-		if(pos != -1)
-		{
-			var str = hex.substr(3);
-			str = str.split(",");
-			color[0] = parseInt( str[0] ) / 255;
-			color[1] = parseInt( str[1] ) / 255;
-			color[2] = parseInt( str[2] ) / 255;
-			return;
-		}
-
-		//the rest
-		// Expand shorthand form (e.g. "03F") to full form (e.g. "0033FF")
-		var shorthandRegex = /^#?([a-f\d])([a-f\d])([a-f\d])$/i;
-		hex = hex.replace(shorthandRegex, function(m, r, g, b) {
-			return r + r + g + g + b + b;
-		});
-
-		var result = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex);
-		if(!result)
-			return;
-
-		color[0] = parseInt(result[1], 16) / 255;
-		color[1] = parseInt(result[2], 16) / 255;
-		color[2] = parseInt(result[3], 16) / 255;
 	}
 
 	//extra
@@ -753,6 +739,9 @@ function enableWebGLCanvas( canvas )
 			varying vec2 v_coord;\n\
 			uniform vec2 u_viewport;\n\
 			uniform mat3 u_transform;\n\
+			#ifdef EXTRA_PROJECTION\n\
+				uniform mat4 u_projection;\n\
+			#endif\n\
 			uniform float u_pointSize;\n\
 			void main() { \n\
 				vec3 pos = a_vertex;\n\
@@ -761,6 +750,9 @@ function enableWebGLCanvas( canvas )
 				//normalize\n\
 				pos.x = (2.0 * pos.x / u_viewport.x) - 1.0;\n\
 				pos.y = -((2.0 * pos.y / u_viewport.y) - 1.0);\n\
+				#ifdef EXTRA_PROJECTION\n\
+					pos = (u_projection * mat4(pos,1.0)).xz;\n\
+				#endif\n\
 				gl_Position = vec4(pos, 1.0); \n\
 				gl_PointSize = ceil(u_pointSize);\n\
 				v_coord = a_coord;\n\
@@ -842,7 +834,7 @@ function enableWebGLCanvas( canvas )
 	*/
 
 	//text rendering
-	var	point_text_shader = new GL.Shader( POINT_TEXT_VERTEX_SHADER, POINT_TEXT_FRAGMENT_SHADER );
+	var	point_text_shader = new GL.Shader( POINT_TEXT_VERTEX_SHADER, POINT_TEXT_FRAGMENT_SHADER, extra_macros );
 	var point_text_vertices = new Float32Array( max_characters * 3 );
 	var point_text_coords = new Float32Array( max_characters * 2 );
 	var point_text_mesh = new GL.Mesh();
@@ -931,10 +923,15 @@ function enableWebGLCanvas( canvas )
 		uniforms.u_viewport = viewport;
 		if(!uniforms.u_angle_sincos)
 			uniforms.u_angle_sincos = vec2.create();
-		uniforms.u_angle_sincos[0] = Math.sin(-global_angle);
-		uniforms.u_angle_sincos[1] = Math.cos(-global_angle);
+
+		uniforms.u_angle_sincos[1] = Math.sin(-global_angle);
+		uniforms.u_angle_sincos[0] = -Math.cos(-global_angle);
+		//uniforms.u_angle_sincos[0] = Math.sin(-global_angle);
+		//uniforms.u_angle_sincos[1] = Math.cos(-global_angle);
 
 		point_text_shader.uniforms(uniforms).drawRange(point_text_mesh, gl.POINTS, 0, vertices_index / 3 );
+
+		return { x:x, y:y };
 	}
 
 	ctx.measureText = function(text)
@@ -943,7 +940,7 @@ function enableWebGLCanvas( canvas )
 		var info = atlas.info;
 		var point_size = this._font_size * 1.1;
 		var spacing = point_size * atlas.info.spacing / atlas.info.char_size - 1 ;
-		return { width: text.length * spacing };
+		return { width: text.length * spacing, height: point_size };
 	}
 
 	ctx.createFontAtlas = function(fontname, fontmode, force)
@@ -951,7 +948,9 @@ function enableWebGLCanvas( canvas )
 		fontname = fontname || "monospace";
 		fontmode = fontmode || "normal";
 
-		var texture = this.textures[":font_" + fontname + ":" + fontmode];
+		var imageSmoothingEnabled = this.imageSmoothingEnabled;
+
+		var texture = textures[":font_" + fontname + ":" + fontmode];
 		if(texture && !force)
 			return texture;
 
@@ -962,6 +961,7 @@ function enableWebGLCanvas( canvas )
 
 		var ctx = canvas.getContext("2d");
 		ctx.fillStyle = "white";
+		ctx.imageSmoothingEnabled = this.imageSmoothingEnabled;
 		//ctx.fillRect(0,0,canvas.width,canvas.height);
 		ctx.clearRect(0,0,canvas.width,canvas.height);
 		ctx.font = fontmode + " " + font_size + "px " + fontname;
@@ -1008,9 +1008,9 @@ function enableWebGLCanvas( canvas )
 			}
 		}
 
-		texture = GL.Texture.fromImage(canvas, {magFilter: gl.LINEAR, minFilter: gl.LINEAR_MIPMAP_LINEAR, premultiply_alpha: false} );
+		texture = GL.Texture.fromImage(canvas, {magFilter: imageSmoothingEnabled ? gl.LINEAR : gl.NEAREST, minFilter: imageSmoothingEnabled ? gl.LINEAR_MIPMAP_LINEAR : gl.NEAREST, premultiply_alpha: false} );
 		texture.info = info; //font generation info
-		return this.textures[":font_" + fontname + ":" + fontmode] = texture;
+		return textures[":font_" + fontname + ":" + fontmode] = texture;
 	}
 
 	//NOT TESTED
@@ -1030,8 +1030,8 @@ function enableWebGLCanvas( canvas )
 	Object.defineProperty(gl, "fillStyle", {
 		get: function() { return this._fillStyle; },
 		set: function(v) { 
-			this._fillStyle = v; 
-			this.updateColor(v, this._fillcolor); 
+			this._fillStyle = v;
+			hexColorToRGBA( v, this._fillcolor, this._globalAlpha ); 
 		}
 	});
 
@@ -1039,14 +1039,29 @@ function enableWebGLCanvas( canvas )
 		get: function() { return this._strokeStyle; },
 		set: function(v) { 
 			this._strokeStyle = v; 
-			this.updateColor( v, this._strokecolor );
+			hexColorToRGBA( v, this._strokecolor, this._globalAlpha );
+		}
+	});
+
+	//shortcuts
+	Object.defineProperty(gl, "fillColor", {
+		get: function() { return this._fillcolor; },
+		set: function(v) { 
+			this._fillcolor.set(v);
+		}
+	});
+
+	Object.defineProperty(gl, "strokeColor", {
+		get: function() { return this._strokecolor; },
+		set: function(v) { 
+			this._strokecolor.set(v);
 		}
 	});
 
 	Object.defineProperty(gl, "shadowColor", {
 		get: function() { return this._shadowcolor; },
 		set: function(v) { 
-			this.updateColor( v, this._shadowcolor );
+			hexColorToRGBA( v, this._shadowcolor, this._globalAlpha );
 		}
 	});
 
@@ -1067,6 +1082,8 @@ function enableWebGLCanvas( canvas )
 			{
 				this._font_mode = t[0];
 				this._font_size = parseFloat(t[1]);
+				if( Number.isNaN( this._font_size ) )
+					this._font_size = 14;
 				if(this._font_size < 10) 
 					this._font_size = 10;
 				this._font_family = t[2];
@@ -1075,6 +1092,8 @@ function enableWebGLCanvas( canvas )
 			{
 				this._font_mode = "normal";
 				this._font_size = parseFloat(t[0]);
+				if( Number.isNaN( this._font_size ) )
+					this._font_size = 14;
 				if(this._font_size < 10) 
 					this._font_size = 10;
 				this._font_family = t[1];
