@@ -1,7 +1,7 @@
 Canvas2DtoWebGL.js
 ==================
 
-Canvas2DtoWebGL.js ports almost all the methods from the regular Canvas2D context (CanvasRenderingContext2D) of HTML5 to WebGL calls, this allows to mix 3D in your 2D Canvas or the opposite, and in some cases it could even improve the performance of your regular Canvas2D.
+Canvas2DtoWebGL.js ports almost all the methods from the regular Canvas2D context (CanvasRenderingContext2D) of HTML5 to WebGL calls, this allows to mix 3D in your 2D Canvas or the opposite (to create GUIs, debug info, etc), and *in some cases* it could even improve the performance of your regular Canvas2D (when working with big images).
 It uses [litegl.js](https://github.com/jagenjo/litegl.js) as the base WebGL library.
 To improve performance it doesn't generate garbage (reuses the same containers). It can work with non power of two textures (no mipmaps obviously).
 
@@ -29,6 +29,11 @@ Not supported (yet):
  
 It is easy to tweak, all the parameters are publicly available inside the context (matrix, colors, etc).
 Textures handlers are cached inside the Image object itself, this means that reusing the same images between different Canvas2D context would have a performance penalty.
+
+Extra features
+---------------------
+
+It not only provide the Canvas2D functions, it also comes with some extra ones that you can call directly to speed up some processes (like setting colors, modifying the matrix) or even creating some FX that would be hard in a regular Canvas (applying a shader to an image, colorizing an image).
 
 
 Demos & Benchmark
