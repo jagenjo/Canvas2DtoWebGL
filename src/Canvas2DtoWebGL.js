@@ -13,7 +13,8 @@ function enableWebGLCanvas( canvas, options )
 		var gl = canvas.getContext("webgl");
 		if(!gl)
 			throw("This canvas cannot be used as WebGL, maybe WebGL is not supported or this canvas has already a 2D context associated");
-		GL.create({canvas: canvas});
+		options.canvas = canvas;
+		GL.create( options );
 	}
 
 	//settings
@@ -956,30 +957,30 @@ function enableWebGLCanvas( canvas, options )
 		fontname = fontname || "monospace";
 		fontmode = fontmode || "normal";
 
+		var now = getTime();
+
 		var imageSmoothingEnabled = this.imageSmoothingEnabled;
 		var useInternationalFont = enableWebGLCanvas.useInternationalFont;
 
-		var canvas_size = 512;
+		var canvas_size = 1024;
 
-		if( useInternationalFont )
-			canvas_size *= 2;
-
-		var texture_name = ":font_" + fontname + ":" + fontmode + ":" + canvas_size;
+		var texture_name = ":font_" + fontname + ":" + fontmode + ":" + useInternationalFont;
 
 		var texture = textures[texture_name];
 		if(texture && !force)
 			return texture;
 
-		var max_ascii_code = 100;
-		var font_size = (canvas_size * 0.09)|0;
-		var char_size = (canvas_size * 0.1)|0;
+		var max_ascii_code = 200;
+		var chars_per_row = 10;
 
-		if( useInternationalFont )
+		if(useInternationalFont) //more characters
 		{
-			max_ascii_code = 440;	
-			char_size *= 0.5;
-			font_size *= 0.5;
+			max_ascii_code = 400;
+			chars_per_row = 20;
 		}
+
+		var char_size = (canvas_size / chars_per_row)|0;
+		var font_size = (char_size * 0.95)|0;
 
 		var canvas = createCanvas(canvas_size,canvas_size);//document.body.appendChild(canvas);
 		var ctx = canvas.getContext("2d");
@@ -999,23 +1000,30 @@ function enableWebGLCanvas( canvas, options )
 			space: (ctx.measureText(" ").width / font_size)
 		};
 
-		//compute individual char width
+		//compute individual char width (WARNING: measureText is very slow)
 		var kernings = info.kernings = {};
-		for(var i = 0; i < max_ascii_code; i++)
+		for(var i = 33; i < max_ascii_code; i++)
 		{
-			var character = String.fromCharCode(i+33);
+			var character = String.fromCharCode(i);
 			var char_width = ctx.measureText(character).width;
-			kernings[character] = { "width": char_width, "nwidth": char_width / font_size };
+			var char_info = { width: char_width, nwidth: char_width / font_size };
+			kernings[character] = char_info;
 		}
 
-		for(var i = 0; i < max_ascii_code; i++)//valid characters from 33 to 133
+		//paint characters in atlas
+		for(var i = 33; i < max_ascii_code; ++i)//valid characters from 33 to max_ascii_code
 		{
-			var character = String.fromCharCode(i+33);
+			var character = String.fromCharCode(i);
 			var kerning = kernings[ character ];
-			if( kerning && kerning.width )
+			if( kerning && kerning.width ) //has some visual info
 			{
-				info[i+33] = [character, (x + char_size*0.5)/canvas.width, (y + char_size*0.5) / canvas.height];
+				info[i] = [character, (x + char_size*0.5)/canvas.width, (y + char_size*0.5) / canvas.height];
+				ctx.save();
+				ctx.beginPath();
+				ctx.rect( Math.floor(x)+0.5,Math.floor(y)+0.5, char_size-2, char_size-2 );
+				ctx.clip();
 				ctx.fillText(character,Math.floor(x+char_size*xoffset),Math.floor(y+char_size+yoffset),char_size);
+				ctx.restore();
 				x += char_size; //cannot pack chars closer because rendering points, no quads
 				if((x + char_size) > canvas.width)
 				{
@@ -1024,22 +1032,34 @@ function enableWebGLCanvas( canvas, options )
 				}
 			}
 
-			//compute kernings
-			var char_width = kerning.width;
-			for(var j = 0; j < max_ascii_code; j++)
-			{
-				var other = String.fromCharCode(j+33);
-				var other_width = kernings[other].width;
-				var total_width = ctx.measureText(character + other).width;
-				kerning[other] = (total_width * 1.45 - char_width - other_width) / font_size;
-			}
-
 			if( y + char_size > canvas.height )
 				break; //too many characters
 		}
 
-		texture = GL.Texture.fromImage(canvas, {magFilter: imageSmoothingEnabled ? gl.LINEAR : gl.NEAREST, minFilter: imageSmoothingEnabled ? gl.LINEAR_MIPMAP_LINEAR : gl.NEAREST, premultiply_alpha: false} );
+		var last_valid_ascii = i; //the last character in the atlas
+
+		//compute kernings of every char with the rest of chars
+		for(var i = 33; i < last_valid_ascii; ++i)
+		{
+			var character = String.fromCharCode(i);
+			var kerning = kernings[ character ];
+			var char_width = kerning.width;
+			for(var j = 33; j < last_valid_ascii; ++j)
+			{
+				var other = String.fromCharCode(j);
+				var other_width = kernings[other].width; 
+				if(!other_width)
+					continue;
+				var total_width = ctx.measureText(character + other).width; //this is painfully slow...
+				kerning[other] = (total_width * 1.45 - char_width - other_width) / font_size;
+			}
+		}
+
+		//console.log("Font Atlas Generated:", ((getTime() - now)*0.001).toFixed(2),"s");
+
+		texture = GL.Texture.fromImage( canvas, {magFilter: imageSmoothingEnabled ? gl.LINEAR : gl.NEAREST, minFilter: imageSmoothingEnabled ? gl.LINEAR_MIPMAP_LINEAR : gl.NEAREST, premultiply_alpha: false} );
 		texture.info = info; //font generation info
+
 		return textures[texture_name] = texture;
 	}
 
@@ -1167,4 +1187,4 @@ function enableWebGLCanvas( canvas, options )
 	return ctx;
 };
 
-enableWebGLCanvas.useInternationalFont = true; //render as much characters as possible in the texture atlas
+enableWebGLCanvas.useInternationalFont = false; //render as much characters as possible in the texture atlas
