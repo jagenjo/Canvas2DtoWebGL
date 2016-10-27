@@ -57,12 +57,12 @@ var ctx = enableWebGLCanvas( mycanvas );
 
 During your rendering you must call this two functions, it helps set the flags accordingly.
 ```js
-ctx.start();
+ctx.start2D();
 
 //your rendering code
 //...
 
-ctx.finish();
+ctx.finish2D();
 ```
 
 Feedback
