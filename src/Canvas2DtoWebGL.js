@@ -13,13 +13,14 @@ function enableWebGLCanvas( canvas, options )
 	if(!canvas.is_webgl)
 	{
 		options.canvas = canvas;
+		options.alpha = true;
 		try {
 			gl = GL.create(options);
 		} catch(e) {
 			console.log("This canvas cannot be used as WebGL, maybe WebGL is not supported or this canvas has already a 2D context associated");
 			gl = canvas.getContext("2d", options);
 			return gl;
-            	}
+       	}
 	}
 
 	// Return if canvas is already canvas2DtoWebGL enabled

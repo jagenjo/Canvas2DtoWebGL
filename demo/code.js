@@ -338,6 +338,24 @@ function render_rotatedText(canvas, ctx)
 	ctx.restore();
 }
 
+function render_colors(canvas, ctx)
+{
+	ctx.clearRect(0,0,canvas.width,canvas.height);
+	var w = canvas.width;
+	var h = canvas.height;
+	var rh = h / 6;
+
+	var colors = ["hsla(0,30%,10%,1)","hsla(60,60%,70%,1)","hsla(120,10%,30%,1)","hsla(180,90%,40%,1)","hsla(240,50%,50%,1)","hsla(300,50%,50%,0.6)"];
+
+	for(var i = 0; i < 6; ++i)
+	{
+		ctx.fillStyle = colors[i];
+		ctx.fillRect( 0,rh*i, w, rh );
+	}
+
+	ctx.restore();
+}
+
 function render_benchmark_fillText(canvas, ctx)
 {
 	ctx.clearRect(0,0,canvas.width,canvas.height);
