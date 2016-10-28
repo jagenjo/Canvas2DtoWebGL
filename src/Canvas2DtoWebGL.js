@@ -22,6 +22,9 @@ function enableWebGLCanvas( canvas, options )
 			return gl;
        	}
 	}
+	else
+		gl = canvas.gl;
+
 
 	// Return if canvas is already canvas2DtoWebGL enabled
 	if(canvas.canvas2DtoWebGL_enabled)
