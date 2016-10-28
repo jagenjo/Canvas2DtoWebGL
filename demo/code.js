@@ -142,6 +142,16 @@ function render_pattern(canvas, ctx)
 	ctx.restore();
 }
 
+function render_gradient( canvas, ctx )
+{
+	ctx.clearRect(0,0,canvas.width,canvas.height);
+	
+	var gradient = ctx.createLinearGradient(100,0,1000,0);
+	gradient.addColorStop(0.0,"red");
+	gradient.addColorStop(1,"green");
+	ctx.fillStyle = gradient;
+	ctx.fillRect( 500 + Math.sin(time*0.5) * 1000,100,500,500);
+}
 
 function render_lines1(canvas, ctx)
 {
