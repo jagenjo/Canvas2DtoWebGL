@@ -146,9 +146,11 @@ function enableWebGLCanvas( canvas, options )
 			void main() {\n\
 				vec2 pos = (u_itransform * vec3( gl_FragCoord.s, u_viewport.y - gl_FragCoord.t,1.0)).xy;\n\
 				//vec2 pos = vec2( gl_FragCoord.s, u_viewport.y - gl_FragCoord.t);\n\
-				float dotAP = dot(u_gradient.xy,pos);\n\
-				float dotAB = dot(u_gradient.xy,u_gradient.zw);\n\
-				float x = dotAP / dotAB;\n\
+				vec2 AP = pos - u_gradient.xy;\n\
+				vec2 AB = u_gradient.zw - u_gradient.xy;\n\
+				float dotAPAB = dot(AP,AB);\n\
+				float dotABAB = dot(AB,AB);\n\
+				float x = dotAPAB / dotABAB;\n\
 				vec2 uv = vec2( x, 0.0 );\n\
 				gl_FragColor = u_color * texture2D( u_texture, uv );\n\
 			}\n\
@@ -343,10 +345,10 @@ function enableWebGLCanvas( canvas, options )
 	{
 		var final_color = hexColorToRGBA( color );
 		var v = new Uint8Array(4);
-		v[0] = final_color[0] * 255;
-		v[1] = final_color[1] * 255;
-		v[2] = final_color[2] * 255;
-		v[3] = final_color[3] * 255;
+		v[0] = Math.clamp( final_color[0], 0,1 ) * 255;
+		v[1] = Math.clamp( final_color[1], 0,1 ) * 255;
+		v[2] = Math.clamp( final_color[2], 0,1 ) * 255;
+		v[3] = Math.clamp( final_color[3], 0,1 ) * 255;
 		this.stops.push( [ pos, v ]);
 		this.stops.sort( function(a,b) {return (a[0] > b[0]) ? 1 : ((b[0] > a[0]) ? -1 : 0);} );
 		this._must_update = true;
@@ -406,7 +408,7 @@ function enableWebGLCanvas( canvas, options )
 				var f = (t - current[0]) / (next[0] - current[0]);
 				vec4.lerp( color, current[1], next[1], f );
 			}
-			else if( t > next[0] )
+			else if( next[0] <= t )
 			{
 				index+=1;						
 				current = this.stops[index];
