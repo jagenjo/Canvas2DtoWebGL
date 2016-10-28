@@ -20,13 +20,13 @@ Fully supported functions:
  * imageSmoothingEnabled
  * getImageData and putImageData (not fully tested)
  * shadows (not blurred)
+ * createLinearGradient
 
 Not supported (yet):
  * clip
  * globalCompositeOperation
  * concave polygon shapes
- * createLinearGradient
- 
+  
 It is easy to tweak, all the parameters are publicly available inside the context (matrix, colors, etc).
 Textures handlers are cached inside the Image object itself, this means that reusing the same images between different Canvas2D context would have a performance penalty.
 
