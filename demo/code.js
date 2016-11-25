@@ -137,8 +137,10 @@ function render_pattern(canvas, ctx)
 	var pattern = ctx.createPattern(img,"repeat");
 	ctx.fillStyle = pattern;
 	ctx.save();
+	ctx.translate( canvas.width * 0.5, canvas.height * 0.5 );
 	ctx.scale(0.1,0.1);
-	ctx.fillRect( canvas.width * 0.5 + Math.sin(time) * 100 - 250, 10, 5000,5000);
+	ctx.rotate( time * 0.1 );
+	ctx.fillRect( canvas.width * -5 + Math.sin(time) * 1000, canvas.height * -5, canvas.width * 5,canvas.height * 5);
 	ctx.restore();
 }
 

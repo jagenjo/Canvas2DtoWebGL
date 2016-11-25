@@ -59,6 +59,7 @@ function enableWebGLCanvas( canvas, options )
 	var is_rect = false;
 	var extra_projection = mat4.create();
 	var stencil_enabled = false;
+	var anisotropic = options.anisotropic !== undefined ? options.anisotropic : 2;
 
 	var uniforms = {
 		u_texture: 0
@@ -272,14 +273,14 @@ function enableWebGLCanvas( canvas, options )
 				tex = img.gl[ gl.context_id ];
 				if(tex)
 					return tex;
-				return img.gl[ gl.context_id ] = GL.Texture.fromImage(img, { magFilter: gl.LINEAR, minFilter: gl.LINEAR_MIPMAP_LINEAR, wrap: wrap, ignore_pot:true, premultipliedAlpha: true } );
+				return img.gl[ gl.context_id ] = GL.Texture.fromImage(img, { magFilter: gl.LINEAR, minFilter: gl.LINEAR_MIPMAP_LINEAR, wrap: wrap, ignore_pot:true, premultipliedAlpha: true, anisotropic: anisotropic } );
 			}
 			else //probably a canvas
 			{
 				tex = img.gl[ gl.context_id ];
 				if(tex)
 					return tex;
-				return img.gl[ gl.context_id ] = GL.Texture.fromImage(img, { minFilter: gl.LINEAR, magFilter: gl.LINEAR });
+				return img.gl[ gl.context_id ] = GL.Texture.fromImage(img, { minFilter: gl.LINEAR, magFilter: gl.LINEAR, anisotropic: anisotropic });
 			}
 		}
 
