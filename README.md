@@ -21,9 +21,9 @@ Fully supported functions:
  * getImageData and putImageData (not fully tested)
  * shadows (not blurred)
  * createLinearGradient
+ * clip
 
 Not supported (yet):
- * clip
  * globalCompositeOperation
  * concave polygon shapes
   
