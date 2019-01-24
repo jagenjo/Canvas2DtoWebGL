@@ -46,7 +46,7 @@ function enableWebGLCanvas( canvas, options )
 	var white = vec4.fromValues(1,1,1,1);
 
 	//some generic shaders
-	var	flat_shader = new GL.Shader( GL.Shader.QUAD_VERTEX_SHADER, GL.Shader.SCREEN_FLAT_FRAGMENT_SHADER );
+	var	flat_shader = new GL.Shader( GL.Shader.QUAD_VERTEX_SHADER, GL.Shader.FLAT_FRAGMENT_SHADER );
 	var	texture_shader = new GL.Shader( GL.Shader.QUAD_VERTEX_SHADER, GL.Shader.SCREEN_COLORED_FRAGMENT_SHADER );
 	var circle = GL.Mesh.circle({size:1});
 
@@ -56,7 +56,6 @@ function enableWebGLCanvas( canvas, options )
 	var global_mesh = new GL.Mesh();
 	var global_buffer = global_mesh.createVertexBuffer("vertices", null, null, global_vertices, gl.STREAM_DRAW );
 	var quad_mesh = GL.Mesh.getScreenQuad();
-	var is_rect = false;
 	var extra_projection = mat4.create();
 	var stencil_enabled = false;
 	var anisotropic = options.anisotropic !== undefined ? options.anisotropic : 2;
@@ -159,6 +158,26 @@ function enableWebGLCanvas( canvas, options )
 			}\n\
 		", extra_macros );
 
+	ctx.createImageShader = function(code)
+	{
+		return new GL.Shader( GL.Shader.QUAD_VERTEX_SHADER,"\n\
+			precision highp float;\n\
+			uniform sampler2D u_texture;\n\
+			uniform vec4 u_color;\n\
+			uniform vec4 u_texture_transform;\n\
+			uniform vec2 u_viewport;\n\
+			varying vec2 v_coord;\n\
+			void main() {\n\
+				vec2 uv = v_coord * u_texture_transform.zw + vec2(u_texture_transform.x,0.0);\n\
+				uv.y = uv.y - u_texture_transform.y + (1.0 - u_texture_transform.w);\n\
+				uv = clamp(uv,vec2(0.0),vec2(1.0));\n\
+				vec4 color = u_color * texture2D(u_texture, uv);\n\
+				"+code+";\n\
+				gl_FragColor = color;\n\
+			}\n\
+		", extra_macros );
+	}
+
 
 	//some people may reuse it
 	ctx.WebGLCanvas.vertex_shader = vertex_shader;
@@ -172,7 +191,7 @@ function enableWebGLCanvas( canvas, options )
 	var tmp_vec2b = vec2.create();
 	ctx._stack = [];
 	var global_angle = 0;
-	var viewport = vec2.fromValues(1,1);
+	var viewport = ctx.viewport_data.subarray(2,4);
 
 	ctx.translate = function(x,y)
 	{
@@ -192,6 +211,15 @@ function enableWebGLCanvas( canvas, options )
 		tmp_vec2[0] = x;
 		tmp_vec2[1] = y;
 		mat3.scale( this._matrix, this._matrix, tmp_vec2 );
+	}
+
+	//own method to reset internal stuff
+	ctx.resetTransform = function()
+	{
+		//reset transform
+		gl._stack.length = 0;
+		this._matrix.set([1,0,0, 0,1,0, 0,0,1]);
+		global_angle = 0;
 	}
 
 	ctx.save = function() {
@@ -217,15 +245,9 @@ function enableWebGLCanvas( canvas, options )
 
 	ctx.transform = function(a,b,c,d,e,f) {
 		var m = tmp_mat3;
-		m[0] = a;
-		m[1] = c;
-		m[2] = e;
-		m[3] = b;
-		m[4] = d;
-		m[5] = f;
-		m[6] = 0;
-		m[7] = 0;
-		m[8] = 1;
+
+        m[0] = a; m[1] = b; m[2] = 0; m[3] = c; m[4] = d; m[5] = 0; m[6] = e; m[7] = f; m[8] = 1; //fix
+		//m[0] = a; m[1] = c;	m[2] = e; m[3] = b;	m[4] = d; m[5] = f;	m[6] = 0; m[7] = 0;	m[8] = 1;
 
 		mat3.multiply( this._matrix, this._matrix, m );
 		global_angle = Math.atan2( this._matrix[0], this._matrix[1] );
@@ -233,15 +255,10 @@ function enableWebGLCanvas( canvas, options )
 
 	ctx.setTransform = function(a,b,c,d,e,f) {
 		var m = this._matrix;
-		m[0] = a;
-		m[1] = c;
-		m[2] = e;
-		m[3] = b;
-		m[4] = d;
-		m[5] = f;
-		m[6] = 0;
-		m[7] = 0;
-		m[8] = 1;
+
+		m[0] = a; m[1] = b; m[2] = 0; m[3] = c; m[4] = d; m[5] = 0; m[6] = e; m[7] = f; m[8] = 1; //fix
+		//m[0] = a; m[1] = c;	m[2] = e; m[3] = b;	m[4] = d; m[5] = f;	m[6] = 0; m[7] = 0;	m[8] = 1;
+
 		//this._matrix.set([a,c,e,b,d,f,0,0,1]);
 		global_angle = Math.atan2( this._matrix[0], this._matrix[1] );
 	}
@@ -448,7 +465,6 @@ function enableWebGLCanvas( canvas, options )
 	ctx.beginPath = function()
 	{
 		global_index = 0;
-		is_rect = false;
 	}
 
 	ctx.closePath = function()
@@ -459,7 +475,6 @@ function enableWebGLCanvas( canvas, options )
 		global_vertices[ global_index + 1] = global_vertices[1];
 		global_vertices[ global_index + 2] = 1;
 		global_index += 3;
-		is_rect = false;
 	}
 
 	ctx.moveTo = function(x,y)
@@ -484,7 +499,6 @@ function enableWebGLCanvas( canvas, options )
 			global_index += 3;
 		}
 
-		is_rect = false;
 	}
 
 	ctx.lineTo = function(x,y)
@@ -493,13 +507,12 @@ function enableWebGLCanvas( canvas, options )
 		global_vertices[ global_index + 1] = y;
 		global_vertices[ global_index + 2] = 1;
 		global_index += 3;
-		is_rect = false;
 	}
 
 	ctx.bezierCurveTo = function(m1x,m1y, m2x,m2y, ex,ey)
 	{
-		if(global_index < 3) return;
-		is_rect = false;
+		if(global_index < 3)
+			return;
 
 		var last = [ global_vertices[ global_index - 3 ], global_vertices[ global_index - 2 ] ];
 		cp = [ last, [m1x, m1y], [m2x, m2y], [ex, ey] ];
@@ -534,8 +547,8 @@ function enableWebGLCanvas( canvas, options )
 
 	ctx.quadraticCurveTo = function(mx,my,ex,ey)
 	{
-		if(global_index < 3) return;
-		is_rect = false;
+		if(global_index < 3)
+			return;
 
 		var sx = global_vertices[ global_index - 3 ];
 		var sy = global_vertices[ global_index - 2 ];
@@ -564,11 +577,7 @@ function enableWebGLCanvas( canvas, options )
 		if(global_index < 9)
 			return;
 
-		//if(is_rect)
-		//	return this.fillRect();
-
 		//update buffer
-		//global_buffer.upload( gl.STREAM_DRAW );
 		global_buffer.uploadRange(0, global_index * 4); //4 bytes per float
 		uniforms.u_viewport = viewport;
 		var shader = flat_primitive_shader;
@@ -795,13 +804,69 @@ function enableWebGLCanvas( canvas, options )
 		global_vertices[ global_index + 14] = 1;
 
 		global_index += 15;
-
-		if(global_index == 15)
-			is_rect = true;
 	}
 
-	//roundRect is a function I use sometimes, but here we dont have it
-	ctx.roundRect = ctx.rect;
+	ctx.roundRect = function (x, y, w, h, radius, radius_low)
+	{
+		if ( radius === undefined )
+			radius = 5;
+		if(radius_low === undefined)
+			radius_low  = radius;
+		var gv = global_vertices;
+		var gi = global_index;
+
+		for(var i = 0; i < 10; ++i)
+		{
+			var ang = (i/10)*Math.PI*0.5;
+			gv[ gi ] = x+radius*(1.0 - Math.cos(ang));
+			gv[ gi + 1] = y+radius*(1.0 - Math.sin(ang));
+			gv[ gi + 2] = 1;
+			gi += 3;
+		}
+
+		gv[ gi + 0] = x+radius; gv[ gi + 1] = y; gv[ gi + 2] = 1;
+		gv[ gi + 3] = x+w-radius; gv[ gi + 4] = y; gv[ gi + 5] = 1;
+		gi += 6;
+
+		for(var i = 0; i < 10; ++i)
+		{
+			var ang = (i/10)*Math.PI*0.5;
+			gv[ gi + 0] = x+w-radius*(1.0 - Math.sin(ang));
+			gv[ gi + 1] = y+radius*(1.0 - Math.cos(ang));
+			gv[ gi + 2] = 1;
+			gi += 3;
+		}
+
+		gv[ gi + 0] = x+w; gv[ gi + 1] = y+radius; gv[ gi + 2] = 1;
+		gv[ gi + 3] = x+w; gv[ gi + 4] = y+h-radius_low; gv[ gi + 5] = 1;
+		gi += 6;
+
+		for(var i = 0; i < 10; ++i)
+		{
+			var ang = (i/10)*Math.PI*0.5;
+			gv[ gi + 0] = x+w-radius_low*(1.0 - Math.cos(ang));
+			gv[ gi + 1] = y+h-radius_low*(1.0 - Math.sin(ang));
+			gv[ gi + 2] = 1;
+			gi += 3;
+		}
+
+		gv[ gi + 0] = x+w-radius_low; gv[ gi + 1] = y+h; gv[ gi + 2] = 1;
+		gv[ gi + 3] = x+radius_low; gv[ gi + 4] = y+h; gv[ gi + 5] = 1;
+		gi += 6;
+
+		for(var i = 0; i < 10; ++i)
+		{
+			var ang = (i/10)*Math.PI*0.5;
+			gv[ gi + 0] = x+radius_low*(1.0 - Math.sin(ang));
+			gv[ gi + 1] = y+h-radius_low*(1.0 - Math.cos(ang));
+			gv[ gi + 2] = 1;
+			gi += 3;
+		}
+
+		gv[ gi + 0] = x; gv[ gi + 1] = y+radius; gv[ gi + 2] = 1;
+		global_index = gi + 3;
+	}
+
 
 	ctx.arc = function(x,y,radius, start_ang, end_ang)
 	{
@@ -819,7 +884,6 @@ function enableWebGLCanvas( canvas, options )
 			var f = start_ang + i*delta;
 			this.lineTo(x + Math.cos(f) * radius, y + Math.sin(f) * radius);
 		}
-		is_rect = false;
 	}
 
 	ctx.strokeRect = function(x,y,w,h)
@@ -890,8 +954,8 @@ function enableWebGLCanvas( canvas, options )
 		window.gl = this;
 		var gl = this;
 
-		viewport[0] = gl.viewport_data[2];
-		viewport[1] = gl.viewport_data[3];
+		//viewport[0] = gl.viewport_data[2];
+		//viewport[1] = gl.viewport_data[3];
 		gl.disable( gl.CULL_FACE );
 		gl.disable( gl.DEPTH_TEST );
 		gl.disable( gl.STENCIL_TEST );
@@ -899,7 +963,6 @@ function enableWebGLCanvas( canvas, options )
 		gl.blendFunc( gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA );
 		gl.lineWidth = 1;
 		global_index = 0;
-		is_rect = false;
 	}
 
 	ctx.finish2D = function()
@@ -1122,7 +1185,7 @@ function enableWebGLCanvas( canvas, options )
 	{
 		var atlas = createFontAtlas.call( this, this._font_family, this._font_mode );
 		var info = atlas.info;
-		var point_size = this._font_size * 1.1;
+		var point_size = Math.ceil( this._font_size * 1.1 );
 		var spacing = point_size * atlas.info.spacing / atlas.info.char_size - 1 ;
 		return { width: text.length * spacing, height: point_size };
 	}
@@ -1157,7 +1220,8 @@ function enableWebGLCanvas( canvas, options )
 		var char_size = (canvas_size / chars_per_row)|0;
 		var font_size = (char_size * 0.95)|0;
 
-		var canvas = createCanvas(canvas_size,canvas_size);//document.body.appendChild(canvas);
+		var canvas = createCanvas(canvas_size,canvas_size);
+		//document.body.appendChild(canvas); //debug
 		var ctx = canvas.getContext("2d");
 		ctx.fillStyle = "white";
 		ctx.imageSmoothingEnabled = this.imageSmoothingEnabled;
@@ -1174,6 +1238,8 @@ function enableWebGLCanvas( canvas, options )
 			spacing: char_size * 0.6, //in pixels
 			space: (ctx.measureText(" ").width / font_size)
 		};
+		
+		yoffset += enableWebGLCanvas.fontOffsetY * char_size;
 
 		//compute individual char width (WARNING: measureText is very slow)
 		var kernings = info.kernings = {};
@@ -1184,6 +1250,8 @@ function enableWebGLCanvas( canvas, options )
 			var char_info = { width: char_width, nwidth: char_width / font_size };
 			kernings[character] = char_info;
 		}
+		
+		var clip = true; //clip every character: debug
 
 		//paint characters in atlas
 		for(var i = 33; i < max_ascii_code; ++i)//valid characters from 33 to max_ascii_code
@@ -1193,12 +1261,17 @@ function enableWebGLCanvas( canvas, options )
 			if( kerning && kerning.width ) //has some visual info
 			{
 				info[i] = [character, (x + char_size*0.5)/canvas.width, (y + char_size*0.5) / canvas.height];
-				ctx.save();
-				ctx.beginPath();
-				ctx.rect( Math.floor(x)+0.5,Math.floor(y)+0.5, char_size-2, char_size-2 );
-				ctx.clip();
-				ctx.fillText(character,Math.floor(x+char_size*xoffset),Math.floor(y+char_size+yoffset),char_size);
-				ctx.restore();
+				if(clip)
+				{
+					ctx.save();
+					ctx.beginPath();
+					ctx.rect( Math.floor(x)+0.5,Math.floor(y)+0.5, char_size-2, char_size-2 );
+					ctx.clip();
+					ctx.fillText(character,Math.floor(x+char_size*xoffset),Math.floor(y+char_size+yoffset),char_size);
+					ctx.restore();
+				}
+				else
+					ctx.fillText(character,Math.floor(x+char_size*xoffset),Math.floor(y+char_size+yoffset),char_size);
 				x += char_size; //cannot pack chars closer because rendering points, no quads
 				if((x + char_size) > canvas.width)
 				{
@@ -1232,7 +1305,7 @@ function enableWebGLCanvas( canvas, options )
 
 		//console.log("Font Atlas Generated:", ((getTime() - now)*0.001).toFixed(2),"s");
 
-		texture = GL.Texture.fromImage( canvas, {magFilter: imageSmoothingEnabled ? gl.LINEAR : gl.NEAREST, minFilter: imageSmoothingEnabled ? gl.LINEAR_MIPMAP_LINEAR : gl.NEAREST, premultiply_alpha: false} );
+		texture = GL.Texture.fromImage( canvas, { magFilter: imageSmoothingEnabled ? gl.LINEAR : gl.NEAREST, minFilter: imageSmoothingEnabled ? gl.LINEAR : gl.NEAREST, premultiply_alpha: false, anisotropic: 8 } );
 		texture.info = info; //font generation info
 
 		return textures[texture_name] = texture;
@@ -1373,3 +1446,4 @@ function enableWebGLCanvas( canvas, options )
 };
 
 enableWebGLCanvas.useInternationalFont = false; //render as much characters as possible in the texture atlas
+enableWebGLCanvas.fontOffsetY = 0; //hack, some fonts need extra offsets, dont know why

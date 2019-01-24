@@ -212,10 +212,12 @@ function render_quadraticCurveTo(canvas, ctx)
 	var w = canvas.width;
 	var h = canvas.height;
 
+	ctx.fillStyle = "gray";
 	ctx.strokeStyle = "black";
 	ctx.beginPath();
 	ctx.moveTo( w*(Math.sin(time)*0.5+0.5) , h*0.2 );
 	ctx.quadraticCurveTo( w*0.5, h*0.5, w*0.8, h*0.9 );
+	ctx.fill();
 	ctx.stroke();
 }
 
