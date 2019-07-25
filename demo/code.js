@@ -22,7 +22,10 @@ function init()
 		console.log( option.value, option.dataset["demo"] );
 		current_demo = window[ option.dataset["demo"] ];
 		var tag = document.getElementById("code");
-		tag.innerHTML = "<pre>" + current_demo.toString() + "</pre>";
+		if(current_demo)
+			tag.innerHTML = "<pre>" + current_demo.toString() + "</pre>";
+		else
+			console.error("demo not found: " + option.dataset["demo"]);
 	});
 
 	changeMode.call(go_webgl);
@@ -317,6 +320,24 @@ function render_concaveShapes(canvas, ctx)
 	ctx.closePath();
 	ctx.fill();
 
+	ctx.restore();
+}
+
+function render_rotatedStroke(canvas, ctx)
+{
+	ctx.clearRect(0,0,canvas.width,canvas.height);
+
+	var w = canvas.width;
+	var h = canvas.height;
+
+	ctx.save();
+	ctx.translate(w * 0.5, h * 0.5);
+	ctx.rotate( time );
+	ctx.lineWidth = 10;
+	ctx.beginPath();
+	ctx.rect(-50,-50,100,100);
+	ctx.stroke();
+	ctx.strokeRect(-100,-100,200,200);
 	ctx.restore();
 }
 
