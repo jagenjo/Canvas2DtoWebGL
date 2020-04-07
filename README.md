@@ -26,6 +26,9 @@ Fully supported functions:
 Not supported (yet):
  * globalCompositeOperation
  * concave polygon shapes
+ 
+Won't be supported:
+ * Blurred shadows
   
 It is easy to tweak, all the parameters are publicly available inside the context (matrix, colors, etc).
 Textures handlers are cached inside the Image object itself, this means that reusing the same images between different Canvas2D context would have a performance penalty.
