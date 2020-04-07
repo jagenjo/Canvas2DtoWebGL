@@ -298,8 +298,10 @@ function render_fillText(canvas, ctx)
 	ctx.fillText(text, w * 0.5, h * 0.5 );
 
 	ctx.font = "40px Arial";
-	ctx.fillText("measureText: " + (ctx.measureText("one little sentence").width).toFixed(2), w * 0.5, h * 0.5 + 50);
-
+	var text = "measureText";
+	ctx.fillText(text, w * 0.5, h * 0.5 + 60);
+	var tw = ctx.measureText(text).width;
+	ctx.fillRect( w*0.5 - tw*0.5,h*0.5 + 70, tw, 4 );
 }
 
 function render_concaveShapes(canvas, ctx)
