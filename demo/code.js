@@ -194,6 +194,56 @@ function render_lines2(canvas, ctx)
 	ctx.stroke();
 }
 
+function render_shape(canvas, ctx)
+{
+	ctx.clearRect(0,0,canvas.width,canvas.height);
+
+	var w = canvas.width;
+	var h = canvas.height;
+
+	ctx.fillStyle = "black";
+	var delta = Math.PI * 2 / 10;
+	ctx.beginPath();
+	for(var i = 0; i < 10; ++i)
+		ctx.lineTo( w*0.5 + (Math.sin(time + i * delta) * 200), h*0.5 + (Math.cos(time + i * delta) * 200) );
+	ctx.fill();
+}
+
+function render_save_restore(canvas, ctx)
+{
+	ctx.clearRect(0,0,canvas.width,canvas.height);
+
+	var w = canvas.width;
+	var h = canvas.height;
+
+	ctx.save();
+	ctx.translate(w*0.5,h*0.5);
+
+	ctx.fillStyle = "blue";
+	ctx.beginPath();
+	ctx.arc(0,0,100,0,Math.PI*2);
+	ctx.closePath();
+	ctx.fill();
+
+	ctx.save();
+	ctx.fillStyle = "red";
+	ctx.translate(200,0);
+	ctx.beginPath();
+	ctx.arc(0,0,100,0,Math.PI*2);
+	ctx.closePath();
+	ctx.fill();
+	ctx.restore();
+
+	ctx.translate(0,200);
+	ctx.beginPath();
+	ctx.arc(0,0,100,0,Math.PI*2);
+	ctx.closePath();
+	ctx.fill();
+
+	ctx.restore();
+}
+
+
 function render_bezierCurveTo(canvas, ctx)
 {
 	ctx.clearRect(0,0,canvas.width,canvas.height);
