@@ -194,6 +194,31 @@ function render_lines2(canvas, ctx)
 	ctx.stroke();
 }
 
+function render_roundRect(canvas, ctx)
+{
+	ctx.clearRect(0,0,canvas.width,canvas.height);
+	ctx.strokeStyle = "black";
+
+	var w = canvas.width;
+	var h = canvas.height;
+
+	ctx.beginPath();
+	ctx.roundRect( w * 0.5 - 250, h * 0.5 - 250, 200,200, [20] )
+	ctx.fill();
+
+	ctx.beginPath();
+	ctx.roundRect( w * 0.5 + 50, h * 0.5 - 250, 200,200, [20,0] )
+	ctx.fill();
+
+	ctx.beginPath();
+	ctx.roundRect( w * 0.5 - 250, h * 0.5 + 50, 200,200, [20,5] )
+	ctx.fill();
+
+	ctx.beginPath();
+	ctx.roundRect( w * 0.5 + 50, h * 0.5 + 50, 200,200, [20,5,10,10] )
+	ctx.fill();
+}
+
 function render_shape(canvas, ctx)
 {
 	ctx.clearRect(0,0,canvas.width,canvas.height);
@@ -352,6 +377,9 @@ function render_fillText(canvas, ctx)
 	ctx.fillText(text, w * 0.5, h * 0.5 + 60);
 	var tw = ctx.measureText(text).width;
 	ctx.fillRect( w*0.5 - tw*0.5,h*0.5 + 70, tw, 4 );
+
+	ctx.textAlign = "left";
+	ctx.fillText("multiline1\nmultiline2\nmultiline3", w * 0.5, h * 0.5 + 200);
 }
 
 function render_concaveShapes(canvas, ctx)
@@ -398,15 +426,30 @@ function render_clip(canvas, ctx)
 	ctx.clearRect(0,0,canvas.width,canvas.height);
 	var w = canvas.width;
 	var h = canvas.height;
-	ctx.fillStyle = "black";
 	ctx.save();
 	ctx.translate(w*0.5,h*0.5);
 
+	var offset = Math.sin(time)*100-50;
 
 	ctx.beginPath();
-	ctx.arc(0,0,100,0,2*Math.PI);
+	ctx.arc(offset,0,100,0,2*Math.PI);
 	ctx.clip();
-	ctx.fillRect(Math.sin(time)*100-50,0,100,100);
+
+	ctx.save();
+	ctx.fillStyle = "red";
+	ctx.fillRect(-50,0,100,100);
+
+	ctx.beginPath();
+	ctx.arc(-offset,0,100,0,2*Math.PI);
+	ctx.clip();
+
+	ctx.fillStyle = "green";
+	ctx.fillRect(-50,0,100,100);
+
+	ctx.restore();
+
+	ctx.fillStyle = "blue";
+	ctx.fillRect(-50,40,100,20);
 
 	ctx.restore();
 }
