@@ -1210,7 +1210,8 @@ function enableWebGLCanvas( canvas, options )
 
 	ctx.arc = function(x,y,radius, start_ang, end_ang)
 	{
-		var num = Math.ceil(radius*2*this._matrix[0]+1);
+		var scale = Math.max( Math.abs( this._matrix[0] ), Math.abs( this._matrix[1] ), Math.abs( this._matrix[3] ), Math.abs( this._matrix[4] ) );//the axis defining ones
+		var num = Math.ceil(radius*2*scale+1);
 		if(num<1)
 			return;
 		num = Math.min(num, 1024); //clamp it or bad things can happend
@@ -1675,7 +1676,10 @@ function enableWebGLCanvas( canvas, options )
 		set: function(v) { 
 			if(!v)
 				return;
-			this._fillcolor.set(v);
+			if( v.length < 5 )
+				this._fillcolor.set(v);
+			else
+				console.error("fillColor value has more than 4 components");
 		}
 	});
 
@@ -1684,7 +1688,10 @@ function enableWebGLCanvas( canvas, options )
 		set: function(v) { 
 			if(!v)
 				return;
-			this._strokecolor.set(v);
+			if( v.length < 5 )
+				this._strokecolor.set(v);
+			else
+				console.error("strokeColor value has more than 4 components");
 		}
 	});
 
@@ -1793,3 +1800,5 @@ function enableWebGLCanvas( canvas, options )
 
 enableWebGLCanvas.useInternationalFont = false; //render as much characters as possible in the texture atlas
 enableWebGLCanvas.fontOffsetY = 0; //hack, some fonts need extra offsets, dont know why
+
+
